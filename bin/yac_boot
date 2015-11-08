@@ -2,7 +2,70 @@
 #
 ##DOC:	bootup yac system, including initiate wireless and generate /tmp/ttt_system
 
+function check_prerequisites {
+	check_tool_prerequisites ifconfig iwlist
+}
+
+function mount_directories {
+	mkdir -p ${PROFILE_LOG_DIR}
+	mkdir -p ${PROFILE_CURRENT_DIR}
+	if [ "" == "$(mount | grep ${PROFILE_LOG_DIR})" ]; then
+		mkdir -p /mnt/data/profiles/foop/logs
+		mount -o bind /mnt/data/profiles/foop/logs ${PROFILE_LOG_DIR}
+		INFO "mount $(LIGHT_GREEN ${PROFILE_LOG_DIR})"
+	fi
+
+	if [ "" == "$(mount | grep ${PROFILE_CURRENT_DIR})" ]; then
+		mount -o bind /mnt/app/profiles/foop/${BOARD_PROFILE_VERSION} ${PROFILE_CURRENT_DIR}
+		INFO "mount $(LIGHT_GREEN ${PROFILE_CURRENT_DIR})"
+	fi
+}
+
+function bootup_wireless_adapter {
+	# Search the WLAN device, might be wlan0, or wlan1, ...
+	#
+	INFO "detecting wireless adapter ..."
+	export WIRELESS_IF=$(ifconfig -a | grep wlan | awk '{print $1}')
+	[ "" ==  "${WIRELESS_IF}" ] && ERR "no available wireless interface" && exit 1
+	INFO "wireless device is $(YELLOW ${WIRELESS_IF})"
+
+	if [ "" == "$(ifconfig ${WIRELESS_IF} | grep UP)" ]; then
+		INFO "bring $(YELLOW ${WIRELESS_IF}) up"
+		ifconfig ${WIRELESS_IF} up
+		INFO "result = $?"
+	fi
+}
+
+function find_ap_and_connect {
+	# Scan current environment with all available wireless access points
+	#
+	export AP_LIST=$(mktemp /tmp/XXXXXX)
+	iwlist ${WIRELESS_IF} scanning | bash ${YAC_LIB_DIR}/parse_iwlist_scan | sort -u > ${AP_LIST}
+	DBG "found access-points: $(BLUE $(cat ${AP_LIST} | tr '\n' ' '))"
+
+	# Read system settings for wireless
+	#
+	TMP2=$(mktemp /tmp/XXXXXX)
+	TMP3=$(mktemp /tmp/XXXXXX)
+	TMP4=$(mktemp /tmp/XXXXXX)
+
+	[ "" == "${WIRELESS_KEYSTORES}" ] && WIRELESS_KEYSTORES="${YS_DIR}/wireless-keystores.conf"
+	[ ! -f "${WIRELESS_KEYSTORES}" ] && WIRELESS_KEYSTORES="${YS_DIR}/wireless-keystores.conf"
+	cat ${WIRELESS_KEYSTORES} | sed -e 's/^ *//' | sed -e 's/ *$//' | sed 's/#.*$//g' | grep -v "^$" | tr '\t' ':' | nl -nrz -w9 > ${TMP2}
+	cat ${AP_LIST} | tr '\n' '\0' | xargs -0 -I{} sh -c "grep {} ${TMP2}" >> ${TMP3}
+	sort ${TMP3} | awk -F '\t' '{print $2}' > ${TMP4}
+	DBG "try access-points: $(BLUE $(cat ${TMP4} | awk -F ':' '{print $1}' | tr '\n' ' '))"
+
+	rm -f ${TMP2}
+	rm -f ${TMP3}
+	rm -f ${TMP4}
+	rm -f ${AP_LIST}
+}
+
 function yac_main {
-	INFO "this is a good day"
+	check_prerequisites
+	mount_directories
+	bootup_wireless_adapter
+	find_ap_and_connect
 }
 

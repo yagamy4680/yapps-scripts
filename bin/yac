@@ -16,6 +16,18 @@ ACTION=$1; shift
 #
 SCRIPT="$(dirname $0)/${PREFIX}_${ACTION}"
 
+TMP=$(pwd)
+cd $(dirname $0)
+cd ../
+export YAC_DIR=$(pwd)
+export YAC_BIN_DIR="${YAC_DIR}/bin"
+export YAC_LIB_DIR="${YAC_DIR}/lib"
+cd ${TMP}
+
+export BOARD_PROFILE_VERSION=$(cat /mnt/app/profiles/foop/entry)
+export PROFILE_ROOT="/${BOARD_PROFILE}"
+export PROFILE_LOG_DIR="${PROFILE_ROOT}/logs"
+export PROFILE_CURRENT_DIR="${PROFILE_ROOT}/current"
 
 # Execute that script if it's found
 #
