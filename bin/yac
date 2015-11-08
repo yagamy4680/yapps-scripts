@@ -3,4 +3,20 @@ source "$(dirname $0)/../externals/bash-utils/verbose"
 source "$(dirname $0)/../externals/bash-utils/funcs"
 init-verbose $0
 
-INFO "pwd = $(LIGHT_GREEN $(pwd))"
+PREFIX=$(basename $0)
+
+# Get `action` from 1st argument
+#
+ACTION=$1; shift
+[ "-h" == "${ACTION}" ] && ACTION="help"
+[ "" == "${ACTION}" ] && ACTION="help"
+
+
+# Full path of the action script to be executed
+#
+SCRIPT="$(dirname $0)/${PREFIX}_${ACTION}"
+
+
+# Execute that script if it's found
+#
+[ -f "${SCRIPT}" ] && source ${SCRIPT} && yac_main $@ && exit $?

@@ -1,0 +1,8 @@
+#!/bin/bash
+#
+##DOC:	bootup yac system, including initiate wireless and generate /tmp/ttt_system
+
+function yac_main {
+	INFO "this is a good day"
+}
+
