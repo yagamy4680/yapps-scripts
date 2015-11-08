@@ -1,0 +1,6 @@
+#!/bin/bash
+source "$(dirname $0)/../externals/bash-utils/verbose"
+source "$(dirname $0)/../externals/bash-utils/funcs"
+init-verbose $0
+
+INFO "pwd = $(LIGHT_GREEN $(pwd))"
