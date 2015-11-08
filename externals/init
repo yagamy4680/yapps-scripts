@@ -1,0 +1,28 @@
+#!/bin/bash
+
+CURRENT=$(pwd)
+cd $(dirname $0)
+BASEDIR=$(pwd)
+cd ${CURRENT}
+
+# https://github.com/yagamy4680/yap-module-hook.git
+
+function init_github_repository {
+	USER=$1
+	NAME=$2
+	MODULE_DIR=$3
+	TOKEN=$4
+	DIR="${MODULE_DIR}/${NAME}"
+	[ "" == "${TOKEN}" ] && export URL="https://github.com/${USER}/${NAME}.git" || export URL="https://${TOKEN}@github.com/${USER}/${NAME}"
+	if [ ! -d "${DIR}" ]; then
+		git clone ${URL} ${DIR}
+	else
+		echo "${NAME} exists..."
+		CURRENT=$(pwd)
+		cd ${DIR}
+		git pull
+		cd ${CURRENT}
+	fi
+}
+
+init_github_repository "yagamy4680" "bash-utils" $(pwd)

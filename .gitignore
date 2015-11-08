@@ -55,3 +55,7 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# External dependencies
+#
+/externals/bash-utils
