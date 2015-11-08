@@ -41,7 +41,7 @@ function find_ap_and_connect {
 	#
 	export AP_LIST=$(mktemp /tmp/XXXXXX)
 	iwlist ${WIRELESS_IF} scanning | bash ${YAC_LIB_DIR}/parse_iwlist_scan | sort -u > ${AP_LIST}
-	DBG "found access-points: $(BLUE $(cat ${AP_LIST} | tr '\n' ' '))"
+	INFO "found access-points: $(BLUE $(cat ${AP_LIST} | tr '\n' ' '))"
 
 	# Read system settings for wireless
 	#
@@ -54,18 +54,103 @@ function find_ap_and_connect {
 	cat ${WIRELESS_KEYSTORES} | sed -e 's/^ *//' | sed -e 's/ *$//' | sed 's/#.*$//g' | grep -v "^$" | tr '\t' ':' | nl -nrz -w9 > ${TMP2}
 	cat ${AP_LIST} | tr '\n' '\0' | xargs -0 -I{} sh -c "grep {} ${TMP2}" >> ${TMP3}
 	sort ${TMP3} | awk -F '\t' '{print $2}' > ${TMP4}
-	DBG "try access-points: $(BLUE $(cat ${TMP4} | awk -F ':' '{print $1}' | tr '\n' ' '))"
+	INFO "try access-points: $(BLUE $(cat ${TMP4} | awk -F ':' '{print $1}' | tr '\n' ' '))"
 
 	rm -f ${TMP2}
 	rm -f ${TMP3}
-	rm -f ${TMP4}
 	rm -f ${AP_LIST}
+
+	WIFI_LOGFILE="${PROFILE_LOG_DIR}/wireless_`date +%Y%m%d%H%M%S`.log"
+	TMP5=$(mktemp)
+	SETTINGS=($(cat ${TMP4}))
+	export WIRELESS_CONNECTED="false"
+	rm -f ${TMP4}
+	source ${YAC_LIB_DIR}/wireless_connect
+
+	# Try to connect wireless access point one-by-one
+	#
+	for s in "${SETTINGS[@]}" ; do
+		SSID=$(echo $s | awk -F ':' '{print $1}')
+		PASS=$(echo $s | awk -F ':' '{print $2}')
+		INFO "connecting to $(YELLOW ${SSID}) with password $(YELLOW ${PASS})"
+		WIRELESS_IF=${WIRELESS_IF} WIFI_LOGFILE=${WIFI_LOGFILE} WAITING_TIME_LOGFILE=${TMP5} connect_to_ap ${SSID} ${PASS}
+
+		export WIRELESS_AP_MAC=$(iwconfig ${WIRELESS_IF} | grep 'Access Point' | sed 's/.*Access Point: //g')
+		export WIRELESS_IP_ADDR=$(ifconfig ${WIRELESS_IF} | grep "inet addr" | awk '{print $2}' | sed 's/addr://g')
+		if [ "" == "$(echo ${WIRELESS_AP_MAC} | grep ':')" ] || [ "" == "${WIRELESS_IP_ADDR}" ]; then
+			sleep 1
+		else
+			export WIRELESS_CONNECTED="true"
+			INFO "wireless-ap-mac = $(LIGHT_GREEN ${WIRELESS_AP_MAC})"
+			INFO "wireless-ip = $(LIGHT_GREEN ${WIRELESS_IP_ADDR})"
+			INFO "spent $(cat ${TMP5}) seconds to connect to wireless ap"
+			export SSID
+			export WIRELESS_CONNECTING_TIME=$(cat ${TMP5})
+			rm -f ${TMP5}
+			break
+		fi
+	done
+}
+
+function generate_ttt_system {
+cat << __EOF__ > /tmp/ttt_system
+id	${UNIQUE_ID}
+alias	${BOARD_NAME}
+profile	${BOARD_PROFILE}
+profile_version	${BOARD_PROFILE_VERSION}
+wireless_ap_mac	${WIRELESS_AP_MAC}
+wireless_ip_addr	${WIRELESS_IP_ADDR}
+wireless_mac_addr	${MAC_ADDR}
+wireless_handshake_time	${WIRELESS_CONNECTING_TIME}
+wireless_ssid	${SSID}
+__EOF__
+cp /tmp/ttt_system ${PROJECT_LOG_DIR}/
+}
+
+
+function generate_sys_info_and_notify_cloud {
+	export UNIQUE_ID="$(find_unique_id)"
+	export BOARD_NAME="$(uname -n)"
+	export MAC_ADDR=$(ifconfig ${WIRELESS_IF} | grep HWaddr | grep ${WIRELESS_IF} | sed 's/.*HWaddr //g')dd
+
+	if [ "true" == "${WIRELESS_CONNECTED}" ]; then
+		export MAC_ADDR=$(ifconfig ${WIRELESS_IF} | grep HWaddr | grep ${WIRELESS_IF} | sed 's/.*HWaddr //g')
+		RUN_CMD_STREAMING \
+			http \
+				--verbose \
+				--ignore-stdin \
+				https://ws.dhvac.io/api/models/${BOARD_NAME}.system \
+				profile=${BOARD_PROFILE} \
+				profile_version=${BOARD_PROFILE_VERSION} \
+				wireless_ap_mac=${WIRELESS_AP_MAC} \
+				wireless_ip_addr=${WIRELESS_IP_ADDR} \
+				wireless_mac_addr=${MAC_ADDR} \
+				wireless_handshake_time:=${WIRELESS_CONNECTING_TIME} \
+				wireless_ssid=${SSID} \
+				id=${UNIQUE_ID}
+		INFO "successfully https://ws.dhvac.io/api/models/${BOARD_NAME}.system"
+		generate_ttt_system
+	else
+		ERR "failed to connect to any access-point"
+		generate_ttt_system
+	fi
+}
+
+function run_init_scripts {
+	SCRIPTS=($(find ${PROFILE_CURRENT_DIR}/etc/init.d/ -type f | sort))
+	for s in "${SCRIPTS[@]}"; do
+		INFO "executing ${BOARD_PROFILE} / ${BOARD_PROFILE_VERSION} / $(basename $s) ..."
+		$s
+	done
 }
 
 function yac_main {
+	source ${YAC_DIR}/externals/bash-utils/system
 	check_prerequisites
 	mount_directories
 	bootup_wireless_adapter
 	find_ap_and_connect
+	generate_sys_info_and_notify_cloud
+	run_init_scripts
 }
 
