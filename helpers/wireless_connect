@@ -1,0 +1,55 @@
+#!/bin/bash
+
+function connect_to_ap {
+	set -e
+	[ "" == "$1" ] && ERR "ERR: please specify ssid ..." && return
+	[ "" == "$2" ] && ERR "ERR: please specify password ... " && return
+
+	INFO "${WIRELESS_IF} clean-up previous instance ..."
+	ps aux | grep wpa_supplicant | grep ${WIRELESS_IF} | awk '{print $2}' | xargs -I{} sh -c "kill -9 {}"
+	ps aux | grep dhclient | grep ${WIRELESS_IF} | awk '{print $2}' | xargs -I{} sh -c "kill -9 {}"
+
+	SSID=$1
+	PASS=$2
+
+	INFO "${WIRELESS_IF} connecting to $(BLUE ${SSID}) ..."
+
+	[ "" == "${WIFI_LOGFILE}" ] && WIFI_LOGFILE="/tmp/wireless-`date +%Y%m%d%H%M%S`-$1.log"
+
+	wpa_passphrase ${SSID} ${PASS} > /tmp/wireless_setting
+	wpa_supplicant -dd -Dwext -i ${WIRELESS_IF} -c/tmp/wireless_setting -f${WIFI_LOGFILE} -B > /dev/null 2>&1
+
+	times=0
+
+	while [ "" != "$(iwconfig ${WIRELESS_IF} | head -n1 | grep 'unassociated')" ]
+	do
+		sleep 1
+		times=$(($times+1))
+		if [ "$times" -gt 20 ];
+		then
+			INFO "${WIRELESS_IF} handshake timeout, more than 20 seconds"
+			return
+		fi
+		INFO "${WIRELESS_IF} waiting for wifi handshake with SSID $(BLUE ${SSID}) ..."
+	done
+
+	while [ "" == "$(ifconfig ${WIRELESS_IF} | grep 'BROADCAST' | grep 'RUNNING')" ]
+	do
+		sleep 1
+		times=$(($times+1))
+		if [ "$times" -gt 20 ];
+		then
+			INFO "${WIRELESS_IF} authentication timeout, more than 20 seconds"
+			exit 1
+		fi
+		INFO "${WIRELESS_IF} waiting for wifi authentication with SSID $(BLUE ${SSID}) ..."
+	done
+
+	[ "" == "${WAITING_TIME_LOGFILE}" ] || echo $times > ${WAITING_TIME_LOGFILE}
+
+	INFO "${WIRELESS_IF} renew dhcp settings ..."
+	dhclient ${WIRELESS_IF}
+
+	INFO "${WIRELESS_IF} restart bonjour service ..."
+	service avahi-daemon restart > /dev/null 2>&1
+}

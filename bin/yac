@@ -21,7 +21,7 @@ cd $(dirname $0)
 cd ../
 export YAC_DIR=$(pwd)
 export YAC_BIN_DIR="${YAC_DIR}/bin"
-export YAC_LIB_DIR="${YAC_DIR}/lib"
+export YAC_LIB_DIR="${YAC_DIR}/helpers"
 cd ${TMP}
 
 export BOARD_PROFILE_VERSION=$(cat /mnt/app/profiles/foop/entry)
