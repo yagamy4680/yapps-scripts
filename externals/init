@@ -15,7 +15,7 @@ function init_github_repository {
 	DIR="${MODULE_DIR}/${NAME}"
 	[ "" == "${TOKEN}" ] && export URL="https://github.com/${USER}/${NAME}.git" || export URL="https://${TOKEN}@github.com/${USER}/${NAME}"
 	if [ ! -d "${DIR}" ]; then
-		git clone ${URL} ${DIR}
+		git clone -q ${URL} ${DIR}
 	else
 		echo "${NAME} exists..."
 		CURRENT=$(pwd)
