@@ -23,14 +23,10 @@ function init-yac-variables {
 
 	[ "" == "${NODEJS_VERSION}" ] && export NODEJS_VERSION=$(cat ${YS_DIR}/defaults.conf | grep "^nodejs" | awk -F'\t' '{print $2}')
 	[ "" == "${PYTHON_VERSION}" ] && export PYTHON_VERSION=$(cat ${YS_DIR}/defaults.conf | grep "^python" | awk -F'\t' '{print $2}')
-	INFO "python = ${PYTHON_VERSION}|"
 
 	export RUNTIME_DIR="/mnt/app/runtimes"
 	export RUNTIME_NODEJS_DIR="${RUNTIME_DIR}/nodejs/${NODEJS_VERSION}"
 	export RUNTIME_PYTHON_DIR="${RUNTIME_DIR}/python/${PYTHON_VERSION}"
-
-	INFO "RUNTIME_PYTHON_DIR = ${RUNTIME_PYTHON_DIR}|"
-	INFO "RUNTIME_NODEJS_DIR = ${RUNTIME_NODEJS_DIR}|"
 
 	export NODEJS_MODULE_DIR="${PROFILE_CURRENT_DIR}/runtimes/nodejs/${NODEJS_VERSION}"
 }

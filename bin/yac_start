@@ -24,4 +24,5 @@ function yac_main {
 		> ${LOG_FILE} 2>&1&
 	rm -f ${DST_FILE}
 	ln -s ${LOG_FILE} ${DST_FILE}
+	INFO "\tLOG: $(BLUE ${DST_FILE})"
 }
