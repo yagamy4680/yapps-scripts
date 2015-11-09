@@ -1,0 +1,30 @@
+#!/bin/bash
+
+function init-yac-variables {
+	TMP=$(pwd)
+	cd $(dirname $0)
+	cd ../
+	export YAC_DIR=$(pwd)
+	export YAC_BIN_DIR="${YAC_DIR}/bin"
+	export YAC_LIB_DIR="${YAC_DIR}/helpers"
+	cd ${TMP}
+
+	[ "" == "${BOARD_PROFILE}" ] && export BOARD_PROFILE=$(cat /etc/environment | grep "^BOARD_PROFILE" | awk -F'=' '{print $2}')
+	[ "" == "${YS_DIR}" ] && export BOARD_PROFILE=$(cat /etc/environment | grep "^YS_DIR" | awk -F'=' '{print $2}')
+
+	export BOARD_PROFILE_VERSION=$(cat /mnt/app/profiles/${BOARD_PROFILE}/entry)
+	export PROFILE_ROOT="/${BOARD_PROFILE}"
+	export PROFILE_LOG_DIR="${PROFILE_ROOT}/logs"
+	export PROFILE_LOG_SYS_DIR="${PROFILE_LOG_DIR}/system"
+	export PROFILE_LOG_APP_DIR="${PROFILE_LOG_DIR}/app"
+
+	export PROFILE_CURRENT_DIR="${PROFILE_ROOT}/current"
+	export PROFILE_CURRENT_LOG_DIR="${PROFILE_CURRENT_DIR}/logs"
+
+	[ "" == "${NODEJS_VERSION}" ] && export NODEJS_VERSION=$(cat ${YS_DIR}/defaults.conf | grep "^nodejs")
+	[ "" == "${PYTHON_VERSION}" ] && export NODEJS_VERSION=$(cat ${YS_DIR}/defaults.conf | grep "^python")
+
+	export RUNTIME_DIR="/mnt/app/runtimes"
+	export RUNTIME_NODEJS_DIR="${RUNTIME_DIR}/nodejs/${NODEJS_VERSION}"
+	export RUNTIME_PYTHON_DIR="${RUNTIME_DIR}/python/${PYTHON_VERSION}"
+}
