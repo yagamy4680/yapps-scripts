@@ -24,7 +24,11 @@ export YAC_BIN_DIR="${YAC_DIR}/bin"
 export YAC_LIB_DIR="${YAC_DIR}/helpers"
 cd ${TMP}
 
-export BOARD_PROFILE_VERSION=$(cat /mnt/app/profiles/foop/entry)
+
+[ "" == "${BOARD_PROFILE}" ] && export BOARD_PROFILE=$(cat /etc/environment | grep "^BOARD_PROFILE" | awk -F'=' '{print $2}')
+[ "" == "${YS_DIR}" ] && export BOARD_PROFILE=$(cat /etc/environment | grep "^YS_DIR" | awk -F'=' '{print $2}')
+
+export BOARD_PROFILE_VERSION=$(cat /mnt/app/profiles/${BOARD_PROFILE}/entry)
 export PROFILE_ROOT="/${BOARD_PROFILE}"
 export PROFILE_LOG_DIR="${PROFILE_ROOT}/logs"
 export PROFILE_CURRENT_DIR="${PROFILE_ROOT}/current"
