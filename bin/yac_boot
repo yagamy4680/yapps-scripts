@@ -139,8 +139,10 @@ function generate_sys_info_and_notify_cloud {
 function run_init_scripts {
 	SCRIPTS=($(find ${PROFILE_CURRENT_DIR}/etc/init.d/ -type f | sort))
 	for s in "${SCRIPTS[@]}"; do
-		INFO "executing ${BOARD_PROFILE} / ${BOARD_PROFILE_VERSION} / $(basename $s) ..."
-		$s
+		INFO "executing $(LIGHT_GREEN ${BOARD_PROFILE}) / $(BLUE ${BOARD_PROFILE_VERSION}) / $(PURPLE $(basename $s)) ..."
+		PROFILE_CURRENT_DIR=${PROFILE_CURRENT_DIR} \
+			PROFILE_LOG_DIR=${PROFILE_LOG_DIR} \
+			$s
 	done
 }
 
