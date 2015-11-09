@@ -13,11 +13,14 @@ function mount_directories {
 		mkdir -p /mnt/data/profiles/foop/logs
 		mount -o bind /mnt/data/profiles/foop/logs ${PROFILE_LOG_DIR}
 		INFO "mount $(LIGHT_GREEN ${PROFILE_LOG_DIR})"
+		mkdir -p ${PROFILE_LOG_SYS_DIR}
+		mkdir -p ${PROFILE_LOG_APP_DIR}
 	fi
 
 	if [ "" == "$(mount | grep ${PROFILE_CURRENT_DIR})" ]; then
 		mount -o bind /mnt/app/profiles/foop/${BOARD_PROFILE_VERSION} ${PROFILE_CURRENT_DIR}
 		INFO "mount $(LIGHT_GREEN ${PROFILE_CURRENT_DIR})"
+		mkdir -p ${PROFILE_CURRENT_LOG_DIR}
 	fi
 }
 
@@ -60,7 +63,8 @@ function find_ap_and_connect {
 	rm -f ${TMP3}
 	rm -f ${AP_LIST}
 
-	WIFI_LOGFILE="${PROFILE_LOG_DIR}/wireless_`date +%Y%m%d%H%M%S`.log"
+	#WIFI_LOGFILE="${PROFILE_LOG_DIR}/wireless_`date +%Y%m%d%H%M%S`.log"
+	WIFI_LOGFILE="${PROFILE_LOG_SYS_DIR}/wireless_`date +%Y_%m%d_%H%M`.log"
 	TMP5=$(mktemp)
 	SETTINGS=($(cat ${TMP4}))
 	export WIRELESS_CONNECTED="false"
@@ -87,6 +91,9 @@ function find_ap_and_connect {
 			export SSID
 			export WIRELESS_CONNECTING_TIME=$(cat ${TMP5})
 			rm -f ${TMP5}
+			rm -f ${PROFILE_CURRENT_LOG_DIR}/wireless.log
+			ln -s ${WIFI_LOGFILE} ${PROFILE_CURRENT_LOG_DIR}/wireless.log
+			INFO "log: $(BLUE ${PROFILE_CURRENT_LOG_DIR}/wireless.log) -> ${WIFI_LOGFILE}"
 			break
 		fi
 	done
