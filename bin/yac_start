@@ -1,0 +1,27 @@
+#!/bin/bash
+#
+##DOC:	startup an app in current profile.
+
+function yac_main {
+	APP=$1
+	APP_DIR="${PROFILE_CURRENT_DIR}/apps/${APP}"
+	shift
+
+	[ ! -d "${APP_DIR}" ] && ERR "cannot find $(RED app)" && exit 1
+
+	mkdir -p ${PROFILE_LOG_APP_DIR}
+	TIME=$(date '+%Y_%m%d_%H%M')
+	DST_FILE="${PROFILE_CURRENT_DIR}/logs/${APP}.log"
+	LOG_FILE="${PROFILE_LOG_APP_DIR}/${APP}.${TIME}.log"
+
+	INFO "\tNODE_PATH = $(PURPLE ${NODEJS_MODULE_DIR}/node_modules)"
+	INFO "\t$(YELLOW ${RUNTIME_NODEJS_DIR}/bin/node) $(BLUE ${APP_DIR}/index.js) $(LIGHT_GREEN $@)"
+
+	NODE_PATH=${NODEJS_MODULE_DIR}/node_modules \
+		${RUNTIME_NODEJS_DIR}/bin/node \
+		${APP_DIR}/index.js \
+		$@ \
+		> ${LOG_FILE} 2>&1&
+	rm -f ${DST_FILE}
+	ln -s ${LOG_FILE} ${DST_FILE}
+}

@@ -1,0 +1,24 @@
+#!/bin/bash
+#
+##DOC:	install required modules after profile archive is upgraded.
+
+function install_nodejs_modules {
+	CURRENT=$(pwd)
+	mkdir -p ${NODEJS_MODULE_DIR}
+	cd ${NODEJS_MODULE_DIR}
+	MODULES=$(cat ${PROFILE_CURRENT_DIR}/apps/packages.conf | tr '\t' '@' | tr '\n' ' ')
+	INFO "installing $(PURPLE ${MODULES}) ..."
+	INFO "PATH = ${RUNTIME_NODEJS_DIR}/bin"
+	ls -al ${RUNTIME_NODEJS_DIR}/bin
+	PATH="${RUNTIME_NODEJS_DIR}/bin:${PATH}" node ${RUNTIME_NODEJS_DIR}/bin/npm install ${MODULES}
+	cd ${CURRENT}
+}
+
+function install_python_modules {
+	INFO "no python modules to install ..."
+}
+
+function yac_main {
+	install_nodejs_modules
+	install_python_modules
+}
