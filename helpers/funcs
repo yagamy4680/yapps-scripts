@@ -24,6 +24,9 @@ function init-yac-variables {
 	[ "" == "${NODEJS_VERSION}" ] && export NODEJS_VERSION=$(cat ${YS_DIR}/defaults.conf | grep "^nodejs" | awk -F'\t' '{print $2}')
 	[ "" == "${PYTHON_VERSION}" ] && export PYTHON_VERSION=$(cat ${YS_DIR}/defaults.conf | grep "^python" | awk -F'\t' '{print $2}')
 	[ "" == "${ARCHIVE_URL}" ] && export ARCHIVE_URL=$(cat ${YS_DIR}/cloud.conf | grep "^ARCHIVE_URL" | awk -F'\t' '{print $2}')
+	[ "" == "${RELEASE_URL}" ] && export RELEASE_URL=$(cat ${YS_DIR}/cloud.conf | grep "^RELEASE_URL" | awk -F'\t' '{print $2}')
+	[ "" == "${RELEASE_USER}" ] && export RELEASE_USER=$(cat ${YS_DIR}/cloud.conf | grep "^RELEASE_USER" | awk -F'\t' '{print $2}')
+	[ "" == "${RELEASE_PASS}" ] && export RELEASE_PASS=$(cat ${YS_DIR}/cloud.conf | grep "^RELEASE_PASS" | awk -F'\t' '{print $2}')
 
 	export RUNTIME_DIR="/mnt/app/runtimes"
 	export RUNTIME_NODEJS_DIR="${RUNTIME_DIR}/nodejs/${NODEJS_VERSION}"

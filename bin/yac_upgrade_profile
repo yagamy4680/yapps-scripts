@@ -1,0 +1,56 @@
+#!/bin/bash
+#
+##DOC:	upgrade profile archive to latest version
+
+
+function get_profile_archive_list {
+	OUTPUT=$1
+	TMP=$(mktemp /tmp/XXXXXX)
+	http -a ${RELEASE_USER}:${RELEASE_PASS} --check-status --ignore-stdin ${RELEASE_URL}/yapps/profiles/${BOARD_PROFILE}/ > ${TMP} 2>&1
+	if [ "0" == "$?" ]; then
+		cat ${TMP} | jq -r '.[] | .name' | sort > ${OUTPUT}
+	else
+		touch ${OUTPUT}
+		cat ${TMP}
+	fi
+	rm -f ${TMP}
+}
+
+function download_and_extract {
+	INFO "checking latest version ..."
+	ARCHIVES=$(mktemp /tmp/XXXXXX)
+	get_profile_archive_list ${ARCHIVES}
+	COUNT=$(cat ${ARCHIVES} | wc -l | sed 's/\ //g')
+	[ "0" == "${COUNT}" ] && INFO "no archives for $(LIGHT_GREEN ${BOARD_PROFILE}) to download" && exit 1
+
+	ARCHIVE=$(cat ${ARCHIVES} | tail -n1)
+	ARCHIVE_NAME="${ARCHIVE%%.*}"
+	ARCHIVE_URL="${RELEASE_URL}/yapps/profiles/${BOARD_PROFILE}/${ARCHIVE}"
+
+	INFO "downloading latest version $(LIGHT_GREEN ${ARCHIVE_URL})"
+	ARCHIVE_FILE="/tmp/${BOARD_PROFILE}-$(basename ${ARCHIVE_URL})"
+	http \
+		--check-status \
+		--ignore-stdin \
+		-a ${RELEASE_USER}:${RELEASE_PASS} \
+		--output ${ARCHIVE_FILE} \
+		${ARCHIVE_URL}
+
+	if [ "0" != "$?" ]; then
+		ERR "failed to download ${ARCHIVE_URL}"
+		exit 1
+	fi
+																	
+	INFO "successfully download $(basename ${ARCHIVE_FILE})"
+	TARGET_DIR="/mnt/app/profiles/${BOARD_PROFILE}/${ARCHIVE_NAME}"
+	mkdir -p ${TARGET_DIR}
+	RUN_CMD tar xvf ${ARCHIVE_FILE} -C ${TARGET_DIR}
+	rm -f ${ARCHIVE_FILE}
+	rm -f ${ARCHIVES}
+	echo "${ARCHIVE_NAME}" > /mnt/app/profiles/${BOARD_PROFILE}/entry
+}
+
+
+function yac_main {
+	download_and_extract
+}
