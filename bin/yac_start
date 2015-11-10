@@ -19,6 +19,9 @@ function yac_main {
 	INFO "\tNODE_PATH = $(PURPLE ${NODEJS_MODULE_DIR}/node_modules)"
 	INFO "\t$(YELLOW ${RUNTIME_NODEJS_DIR}/bin/node) $(BLUE ${APP_DIR}/index.js) $(LIGHT_GREEN $@)"
 
+	# Remove unix-sock for the app.
+	rm -f /tmp/yap/${APP}.system.sock
+
 	NODE_PATH=${NODEJS_MODULE_DIR}/node_modules \
 		${RUNTIME_NODEJS_DIR}/bin/node \
 		${APP_DIR}/index.js \

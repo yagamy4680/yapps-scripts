@@ -1,0 +1,28 @@
+#!/bin/bash
+#
+##DOC:	wait until the app is ready.
+
+function yac_main {
+	APP=$1
+	APP_DIR="${PROFILE_CURRENT_DIR}/apps/${APP}"
+
+	[ ! -d "${APP_DIR}" ] && ERR "no such app $(RED ${APP})" && exit 1
+
+	TIMES=0
+
+	while [ "" == "$(ps aux | grep ${PROFILE_CURRENT_DIR}/apps/${APP} | grep -v grep)" ]; do
+		sleep 2
+		TIMES=$(($TIMES+2))
+		[ "${TIMES}" -gt 20 ] && ERR "wait for 20 seconds but no app is launched" && exit 1
+		INFO "waiting..."
+	done
+
+	TIMES=0
+	while [ ! -f "/tmp/yap/${APP}.system.sock" ]; do
+		sleep 2
+		TIMES=$(($TIMES+2))
+		[ "${TIMES}" -gt 180 ] && ERR "wait for 180 seconds but no app unix sock is ready" && exit 1
+	done
+
+	INFO "$(LIGHT_GREEN ${APP}) ready"
+}
