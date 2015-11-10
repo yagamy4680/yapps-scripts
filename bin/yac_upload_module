@@ -1,11 +1,68 @@
 #!/bin/bash
 #
-##DOC:	upload all nodejs and python modules as 2 single archives to https://archives.t2t.io/
+##DOC:	upload all nodejs and python modules as 2 single archives to file-server
+
+function upload_nodejs_module {
+	[ "" == "${UUID}" ] && UUID=$(dbus-uuidgen)
+	[ "" == "${UUID}" ] && UUID="$(cat /proc/sys/kernel/random/uuid)"
+	ARCHIVE_SITE=$(basename ${ARCHIVE_URL})
+	ARCHIVE="/tmp/${UUID}.tar.gz"
+	cd ${NODEJS_MODULE_DIR}
+	UPLOAD_DIR="/embedded-linux/nodejs-modules/${OS_NAME}/${OS_ARCH}"
+	RUN_CMD_STREAMING tar czvf ${ARCHIVE} ./node_modules
+	RUN_CMD \
+		http \
+		--form \
+		--check-status \
+		--ignore-stdin \
+		-a ${UPLOAD_USER}:${UPLOAD_PASS} \
+		${UPLOAD_URL_ENTRY}/api/v1/c/upload \
+			site=${ARCHIVE_SITE} \
+			content@${ARCHIVE} \
+			directory=${UPLOAD_DIR} \
+			overwrite:=true
+	rm -f ${ARCHIVE}
+
+	TMP=$(mktemp /tmp/XXXXXX)
+	http --check-status --ignore-stdin --output ${TMP} https://${ARCHIVE_SITE}${UPLOAD_DIR}/archives.txt 2>&1
+
+
+	
+	rm -f ${ARCHIVE}
+}
+
+
+function upload_python_module {
+	INFO "nothing for python module to upload"
+}
+
+function print_help {
+cat << __EOF__
+yac upload_module [USER] [PASSWORD]
+
+E.g.
+	yac upload_module ya-agent AABBCC
+
+	UPLOAD_URL_ENTRY=https://files.t2t.io UPLOAD_SITE=archives.t2t.io yac upload_module ya-agent AABBCC
+__EOF__
+}
+
 
 function yac_main {
+	[ "" == "${UPLOAD_URL_ENTRY}" ] && export UPLOAD_URL_ENTRY="https://files.t2t.io"
+	[ "" == "${ARCHIVE_URL}" ] && ARCHIVE_SITE="archives.t2t.io"
+	export UPLOAD_USER=$1
+	export UPLOAD_PASS=$2
+
+	[ "" == "${UPLOAD_PASS}" ] && print_help && exit 1
+
 	source "$(dirname $0)/../externals/bash-utils/system"
 	initiate_linux_os_variables
 	
 	INFO "OS_NAME = $(LIGHT_GREEN ${OS_NAME})"
 	INFO "OS_ARCH = $(LIGHT_GREEN ${OS_ARCH})"
+
+	upload_nodejs_module
+	upload_python_module
 }
+
