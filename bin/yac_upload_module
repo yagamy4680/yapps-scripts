@@ -8,7 +8,7 @@ function upload_nodejs_module {
 	ARCHIVE_SITE=$(basename ${ARCHIVE_URL})
 	ARCHIVE="/tmp/${UUID}.tar.gz"
 	cd ${NODEJS_MODULE_DIR}
-	UPLOAD_DIR="/embedded-linux/nodejs-modules/${OS_NAME}/${OS_ARCH}"
+	UPLOAD_DIR="/embedded-linux/nodejs-modules/${OS_NAME}/${OS_ARCH}/${NODEJS_VERSION}"
 	RUN_CMD_STREAMING tar czf ${ARCHIVE} ./node_modules
 	RUN_CMD \
 		http \
