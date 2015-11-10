@@ -1,0 +1,14 @@
+#!/bin/bash
+#
+##DOC:	stop all (nodejs) apps in current profile.
+
+function yac_main {
+	ENTRIES=($(find /${BOARD_PROFILE}/current/apps/ -name 'index.js'))
+
+	for entry in "${ENTRIES[@]}" ; do
+		PID=$(ps aux | grep ${entry} | grep -v grep | awk '{print $2}')
+		NAME=$(basename $(dirname ${entry}))
+		INFO "stopping $(PURPLE ${NAME}) (pid: ${PID})"
+		kill ${PID}
+	done
+}
