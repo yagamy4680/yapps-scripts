@@ -9,26 +9,40 @@ function upload_nodejs_module {
 	ARCHIVE="/tmp/${UUID}.tar.gz"
 	cd ${NODEJS_MODULE_DIR}
 	UPLOAD_DIR="/embedded-linux/nodejs-modules/${OS_NAME}/${OS_ARCH}"
-	RUN_CMD_STREAMING tar czvf ${ARCHIVE} ./node_modules
+	RUN_CMD_STREAMING tar czf ${ARCHIVE} ./node_modules
 	RUN_CMD \
 		http \
-		--form \
-		--check-status \
-		--ignore-stdin \
-		-a ${UPLOAD_USER}:${UPLOAD_PASS} \
-		${UPLOAD_URL_ENTRY}/api/v1/c/upload \
+			--form \
+			--check-status \
+			--ignore-stdin \
+			-a ${UPLOAD_USER}:${UPLOAD_PASS} \
+			${UPLOAD_URL_ENTRY}/api/v1/c/upload \
+				site=${ARCHIVE_SITE} \
+				content@${ARCHIVE} \
+				directory=${UPLOAD_DIR} \
+				overwrite:=true
+	rm -f ${ARCHIVE}
+
+	ARCHIVE_LIST="/tmp/archives.txt"
+	http --check-status --ignore-stdin ${ARCHIVE_URL}${UPLOAD_DIR}/$(basename ${ARCHIVE_LIST}) > ${ARCHIVE_LIST} 2>&1
+	[ "0" != "$?" ] && rm -f ${ARCHIVE_LIST}
+
+	MODULES="$(cat ${PROFILE_CURRENT_DIR}/apps/packages.conf | tr '\t' '@' | tr '\n' ' ' | sed 's/\ $//g' | tr ' ' ':')"
+	echo -e "${UUID}\t${OS_NAME}/${OS_ARCH}\t${MODULES}" >> ${ARCHIVE_LIST}
+
+	RUN_CMD \
+		http \
+			--form \
+			--check-status \
+			--ignore-stdin \
+			-a ${UPLOAD_USER}:${UPLOAD_PASS} \
+			${UPLOAD_URL_ENTRY}/api/v1/c/upload \
 			site=${ARCHIVE_SITE} \
-			content@${ARCHIVE} \
+			content@${ARCHIVE_LIST} \
 			directory=${UPLOAD_DIR} \
 			overwrite:=true
-	rm -f ${ARCHIVE}
-
-	TMP=$(mktemp /tmp/XXXXXX)
-	http --check-status --ignore-stdin --output ${TMP} https://${ARCHIVE_SITE}${UPLOAD_DIR}/archives.txt 2>&1
-
-
 	
-	rm -f ${ARCHIVE}
+	rm -f ${ARCHIVE_LIST}
 }
 
 
