@@ -3,11 +3,13 @@
 ##DOC:	startup an app in current profile.
 
 function yac_main {
+	install_nodejs_modules
+
 	APP=$1
 	APP_DIR="${PROFILE_CURRENT_DIR}/apps/${APP}"
 	shift
 
-	[ ! -d "${APP_DIR}" ] && ERR "cannot find $(RED app)" && exit 1
+	[ ! -d "${APP_DIR}" ] && ERR "cannot find $(RED ${APP}) in $(find ${PROFILE_CURRENT_DIR}/apps -maxdepth 1 -mindepth 1 -type d | xargs -I{} sh -c 'basename {}' | tr '\n' ' ')" && exit 1
 
 	mkdir -p ${PROFILE_LOG_APP_DIR}
 	TIME=$(date '+%Y_%m%d_%H%M')
@@ -26,3 +28,50 @@ function yac_main {
 	ln -s ${LOG_FILE} ${DST_FILE}
 	INFO "\tLOG: $(BLUE ${DST_FILE})"
 }
+
+function install_nodejs_modules {
+	CURRENT=$(pwd)
+	[ -d ${NODEJS_MODULE_DIR} ] && return
+
+	mkdir -p ${NODEJS_MODULE_DIR}
+
+	MODULES=$(cat ${PROFILE_CURRENT_DIR}/apps/packages.conf | tr '\t' '@' | tr '\n' ' ')
+	INFO "installing $(PURPLE ${MODULES}) ..."
+
+	source "$(dirname $0)/../externals/bash-utils/system"
+	initiate_linux_os_variables
+	INFO "OS_NAME = $(LIGHT_GREEN ${OS_NAME})"
+	INFO "OS_ARCH = $(LIGHT_GREEN ${OS_ARCH})"
+
+	MODULES_X=$(cat ${PROFILE_CURRENT_DIR}/apps/packages.conf | tr '\t' '@' | tr '\n' ' ' | sed 's/\ $//g' | tr ' ' ':')
+	ARCHIVE_DIR="/embedded-linux/nodejs-modules/${OS_NAME}/${OS_ARCH}/${NODEJS_VERSION}"
+	ARCHIVE_LIST="/tmp/archives.txt"
+	INFO "checking module archives cached at cloud: ${ARCHIVE_URL}${ARCHIVE_DIR}/$(basename ${ARCHIVE_LIST})"
+	http --check-status --ignore-stdin ${ARCHIVE_URL}${ARCHIVE_DIR}/$(basename ${ARCHIVE_LIST}) > ${ARCHIVE_LIST} 2>&1
+
+	if [ "0" == "$?" ]; then
+		UUID=$(cat ${ARCHIVE_LIST} | grep ${MODULES_X} | awk -F'\t' '{print $1}' | tail -n1)
+		if [ "" != "${UUID}" ]; then
+			INFO "downloading modules from cloud: $(YELLOW ${UUID}.tar.gz)"
+			http --check-status --ignore-stdin --output /tmp/${UUID}.tar.gz ${ARCHIVE_URL}${ARCHIVE_DIR}/${UUID}.tar.gz
+			if [ "0" == "$?" ]; then
+				RUN_CMD tar xf /tmp/${UUID}.tar.gz -C ${NODEJS_MODULE_DIR}
+				[ "0" == "$?" ] && INFO "use downloaded module archive" && return
+			else
+				INFO "failed to download ${UUID}.tar.gz"
+			fi
+		else
+			INFO "no matching modules"
+		fi
+	else
+		INFO "failed to download archives.txt"
+	fi
+	rm -f ${ARCHIVE_LIST}
+	rm -f /tmp/${UUID}.tar.gz
+
+	INFO "installation with npm, PATH = ${RUNTIME_NODEJS_DIR}/bin"
+	cd ${NODEJS_MODULE_DIR}
+	PATH="${RUNTIME_NODEJS_DIR}/bin:${PATH}" node ${RUNTIME_NODEJS_DIR}/bin/npm install ${MODULES}
+	cd ${CURRENT}
+}
+
