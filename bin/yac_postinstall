@@ -9,7 +9,6 @@ function install_nodejs_modules {
 	MODULES=$(cat ${PROFILE_CURRENT_DIR}/apps/packages.conf | tr '\t' '@' | tr '\n' ' ')
 	INFO "installing $(PURPLE ${MODULES}) ..."
 	INFO "PATH = ${RUNTIME_NODEJS_DIR}/bin"
-	ls -al ${RUNTIME_NODEJS_DIR}/bin
 	PATH="${RUNTIME_NODEJS_DIR}/bin:${PATH}" node ${RUNTIME_NODEJS_DIR}/bin/npm install ${MODULES}
 	cd ${CURRENT}
 }
