@@ -5,12 +5,12 @@
 function yac_main {
 	PREFIX=$(basename $0)
 	DIR=$(dirname $0)
-	FOUND_SCRIPTS=($(find ${DIR} -name "${PREFIX}_*" | xargs -I{} sh -c "basename {}" | sed "s/${PREFIX}_//g"))
+	FOUND_SCRIPTS=($(find ${DIR} -name "${PREFIX}_*" | xargs -I{} sh -c "basename {}" | sed "s/${PREFIX}_//g" | sort))
 
 	echo -e "Usage: $(LIGHT_GREEN ${PREFIX}) <<command>> arg1 arg2 arg3 ..."
 	echo -e "Here are supported commands:"
 
 	for i in "${FOUND_SCRIPTS[@]}" ; do
-		echo -e "\t$(BLUE $i)\t$(cat ${DIR}/${PREFIX}_$i | grep "^##DOC:" | awk -F'\t' '{print $2}')"
+		echo -e "\t$(BLUE $i)\t\t$(cat ${DIR}/${PREFIX}_$i | grep "^##DOC:" | awk -F'\t' '{print $2}')"
 	done
 }

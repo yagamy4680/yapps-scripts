@@ -1,0 +1,11 @@
+#!/bin/bash
+#
+##DOC:	upload all nodejs and python modules as 2 single archives to https://archives.t2t.io/
+
+function yac_main {
+	source "$(dirname $0)/../externals/bash-utils/system"
+	initiate_linux_os_variables
+	
+	INFO "OS_NAME = $(LIGHT_GREEN ${OS_NAME})"
+	INFO "OS_ARCH = $(LIGHT_GREEN ${OS_ARCH})"
+}
