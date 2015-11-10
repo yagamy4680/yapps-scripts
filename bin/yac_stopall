@@ -8,7 +8,6 @@ function yac_main {
 	for entry in "${ENTRIES[@]}" ; do
 		PID=$(ps aux | grep ${entry} | grep -v grep | awk '{print $2}')
 		NAME=$(basename $(dirname ${entry}))
-		INFO "stopping $(PURPLE ${NAME}) (pid: ${PID})"
-		kill ${PID}
+		[ "" != "${PID}" ] && INFO "stopping $(PURPLE ${NAME}) (pid: ${PID})" && kill ${PID}
 	done
 }

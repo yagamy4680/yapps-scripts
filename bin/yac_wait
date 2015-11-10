@@ -11,18 +11,20 @@ function yac_main {
 	TIMES=0
 
 	while [ "" == "$(ps aux | grep ${PROFILE_CURRENT_DIR}/apps/${APP} | grep -v grep)" ]; do
+		INFO "\twaiting for app instance ..."
 		sleep 2
 		TIMES=$(($TIMES+2))
 		[ "${TIMES}" -gt 20 ] && ERR "wait for 20 seconds but no app is launched" && exit 1
-		INFO "waiting..."
 	done
 
 	TIMES=0
-	while [ ! -f "/tmp/yap/${APP}.system.sock" ]; do
-		sleep 2
+	while [ ! -S "/tmp/yap/${APP}.system.sock" ]; do
+		INFO "\twaiting for app ready ..."
+		sleep 1
 		TIMES=$(($TIMES+2))
 		[ "${TIMES}" -gt 180 ] && ERR "wait for 180 seconds but no app unix sock is ready" && exit 1
+
 	done
 
-	INFO "$(LIGHT_GREEN ${APP}) ready"
+	INFO "\t$(LIGHT_GREEN ${APP}) ready"
 }
