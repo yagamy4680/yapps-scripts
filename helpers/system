@@ -1,0 +1,56 @@
+#!/bin/bash
+#
+##DOC:	startup an app in current profile.
+
+
+function RUN_DAEMON {
+	DAEMON_DIR="${PROFILE_CURRENT_DIR}/daemons"
+	DAEMON_SCRIPT="${DAEMON_DIR}/${DAEMON_NAME}"
+	DAEMON_SHARE_LOG="${PROFILE_LOG_DIR}/daemons.log"
+	INFO "preparing daemon script: $(LIGHT_GREEN ${DAEMON_SCRIPT})"
+	mkdir -p ${DAEMON_DIR}
+	echo -e "#!/bin/bash\n" > ${DAEMON_SCRIPT}
+	[ -f "${DAEMON_ENV_FILE}" ] && cat ${DAEMON_ENV_FILE} | tr '\t' '=' | awk '{printf "export %s\n", $0}' >> ${DAEMON_SCRIPT}
+	cat <<__EOF__ >> ${DAEMON_SCRIPT}
+
+source ${YAC_DIR}/externals/bash-utils/verbose
+init-verbose \$0
+export LOG_LINE_END="\\r"
+while true; do
+	INFO "start: $(LIGHT_GREEN $@)" > /dev/ttyO0
+	INFO "start: $(LIGHT_GREEN $@)" >> ${DAEMON_SHARE_LOG}
+	INFO "start: $(LIGHT_GREEN $@)"
+	$@
+	EXIT_CODE=\$?
+	INFO "exit code: \${EXIT_CODE}" > /dev/ttyO0
+	INFO "exit code: \${EXIT_CODE}" >> ${DAEMON_SHARE_LOG}
+	INFO "exit code: \${EXIT_CODE}"
+	[ "130" == "\${EXIT_CODE}" ] && break
+	[ "230" == "\${EXIT_CODE}" ] && echo "restarting (exit-code = 230)"
+	[ "0" == "\${EXIT_CODE}" ] && break
+done
+__EOF__
+	chmod +x ${DAEMON_SCRIPT}
+	nohup ${DAEMON_SCRIPT} > ${DAEMON_LOG_FILE} 2>&1&
+}
+
+
+function RUN_NODE_APP_DAEMON {
+	TMP=$(mktemp /tmp/XXXXXX)
+	echo -e "NODE_PATH\t${APP_RUNTIME_MODULE_PATH}" >> ${TMP}
+
+	DAEMON_ENV_FILE=${TMP} \
+		DAEMON_LOG_FILE=${APP_LOGFILE} \
+		DAEMON_NAME=${APP} \
+		RUN_DAEMON \
+			${APP_RUNTIME_EXECUTABLE} \
+			${APP_RUNTIME_OPTS} \
+			${APP_ENTRY} \
+			${APP_OPTS} \
+			$@
+
+	rm -f ${TMP}
+}
+
+
+

@@ -2,7 +2,9 @@
 #
 ##DOC:	startup an app in current profile.
 
+
 function yac_main {
+	source ${YAC_LIB_DIR}/system
 	install_nodejs_modules
 
 	APP=$1
@@ -22,15 +24,25 @@ function yac_main {
 	# Remove unix-sock for the app.
 	rm -f /tmp/yap/${APP}.system.sock
 
-	NODE_PATH=${NODEJS_MODULE_DIR}/node_modules \
-		${RUNTIME_NODEJS_DIR}/bin/node \
-		${APP_DIR}/index.js \
-		$@ \
-		> ${LOG_FILE} 2>&1&
+	APP_RUNTIME_EXECUTABLE="${RUNTIME_NODEJS_DIR}/bin/node"
+	APP_RUNTIME_OPTS=""
+	APP_RUNTIME_MODULE_PATH="${NODEJS_MODULE_DIR}/node_modules"
+	APP_ENTRY="${APP_DIR}/index.js"
+	APP_LOGFILE="${LOG_FILE}"
+
+	APP=${APP} \
+		APP_RUNTIME_EXECUTABLE=${APP_RUNTIME_EXECUTABLE} \
+		APP_RUNTIME_OPTS=${APP_RUNTIME_OPTS} \
+		APP_RUNTIME_MODULE_PATH=${APP_RUNTIME_MODULE_PATH} \
+		APP_ENTRY=${APP_ENTRY} \
+		APP_LOGFILE=${APP_LOGFILE} \
+		RUN_NODE_APP_DAEMON $@
+
 	rm -f ${DST_FILE}
 	ln -s ${LOG_FILE} ${DST_FILE}
 	INFO "\tLOG: $(BLUE ${DST_FILE})"
 }
+
 
 function install_nodejs_modules {
 	CURRENT=$(pwd)

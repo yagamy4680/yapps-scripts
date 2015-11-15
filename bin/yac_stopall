@@ -3,8 +3,16 @@
 ##DOC:	stop all (nodejs) apps in current profile.
 
 function yac_main {
-	ENTRIES=($(find /${BOARD_PROFILE}/current/apps/ -name 'index.js'))
+	# Kill all daemon monitor scripts
+	#
+	# [todo] in the future, yapps shall exit with 230 code, then all daemon
+	#        monitor scripts will exit automatically. No need to kill them.
+	#
+	ps aux | grep "${BOARD_PROFILE}/current/daemons" | grep bash | awk '{print $2}' | xargs -I{} sh -c "kill {}"
 
+	# Kill each running app
+	#
+	ENTRIES=($(find /${BOARD_PROFILE}/current/apps/ -name 'index.js'))
 	for entry in "${ENTRIES[@]}" ; do
 		PID=$(ps aux | grep ${entry} | grep -v grep | awk '{print $2}')
 		NAME=$(basename $(dirname ${entry}))
