@@ -29,7 +29,7 @@ function bootup_wireless_adapter {
 	#
 	INFO "detecting wireless adapter ..."
 	export WIRELESS_IF=$(ifconfig -a | grep wlan | awk '{print $1}')
-	[ "" ==  "${WIRELESS_IF}" ] && ERR "no available wireless interface" && exit 1
+	[ "" ==  "${WIRELESS_IF}" ] && ERR "no available wireless interface" && return
 	INFO "wireless device is $(YELLOW ${WIRELESS_IF})"
 
 	if [ "" == "$(ifconfig ${WIRELESS_IF} | grep UP)" ]; then
@@ -42,6 +42,7 @@ function bootup_wireless_adapter {
 function find_ap_and_connect {
 	# Scan current environment with all available wireless access points
 	#
+	[ "" ==  "${WIRELESS_IF}" ] && return
 	export AP_LIST=$(mktemp /tmp/XXXXXX)
 	iwlist ${WIRELESS_IF} scanning | bash ${YAC_LIB_DIR}/parse_iwlist_scan | sort -u > ${AP_LIST}
 	INFO "found access-points: $(BLUE $(cat ${AP_LIST} | tr '\n' ' '))"
@@ -155,11 +156,17 @@ function run_init_scripts {
 
 function yac_main {
 	source ${YAC_DIR}/externals/bash-utils/system
+	INFO "check_prerequisites"
 	check_prerequisites
+	INFO "mount_directories"
 	mount_directories
+	INFO "bootup_wireless_adapter"
 	bootup_wireless_adapter
+	INFO "find_ap_and_connect"
 	find_ap_and_connect
+	INFO "generate_sys_info_and_notify_cloud"
 	generate_sys_info_and_notify_cloud
+	INFO "run_init_scripts"
 	run_init_scripts
 }
 
