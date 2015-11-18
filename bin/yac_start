@@ -5,6 +5,7 @@
 
 function yac_main {
 	source ${YAC_LIB_DIR}/system
+	INFO "checking node_modules: $(LIGHT_GREEN ${NODEJS_MODULE_DIR})"
 	install_nodejs_modules
 
 	APP=$1
@@ -46,7 +47,7 @@ function yac_main {
 
 function install_nodejs_modules {
 	CURRENT=$(pwd)
-	[ -d ${NODEJS_MODULE_DIR} ] && return
+	[ -d ${NODEJS_MODULE_DIR}/node_modules ] && return
 
 	mkdir -p ${NODEJS_MODULE_DIR}
 
@@ -86,7 +87,7 @@ function install_nodejs_modules {
 
 	INFO "installation with npm, PATH = ${RUNTIME_NODEJS_DIR}/bin"
 	cd ${NODEJS_MODULE_DIR}
-	PATH="${RUNTIME_NODEJS_DIR}/bin:${PATH}" node ${RUNTIME_NODEJS_DIR}/bin/npm install ${MODULES}
+	PATH="${RUNTIME_NODEJS_DIR}/bin:${PATH}" ${RUNTIME_NODEJS_DIR}/bin/node ${RUNTIME_NODEJS_DIR}/bin/npm install ${MODULES}
 	cd ${CURRENT}
 }
 
