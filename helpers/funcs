@@ -17,6 +17,7 @@ function init-yac-variables {
 	export PROFILE_LOG_DIR="${PROFILE_ROOT}/logs"
 	export PROFILE_LOG_SYS_DIR="${PROFILE_LOG_DIR}/system"
 	export PROFILE_LOG_APP_DIR="${PROFILE_LOG_DIR}/app"
+	export PROFILE_STORAGE_DIR="${PROFILE_ROOT}/storage"
 
 	export PROFILE_CURRENT_DIR="${PROFILE_ROOT}/current"
 	export PROFILE_CURRENT_LOG_DIR="${PROFILE_CURRENT_DIR}/logs"

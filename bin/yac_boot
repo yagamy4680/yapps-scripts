@@ -8,6 +8,7 @@ function check_prerequisites {
 
 function mount_directories {
 	mkdir -p ${PROFILE_LOG_DIR}
+	mkdir -p ${PROFILE_STORAGE_DIR}
 	mkdir -p ${PROFILE_CURRENT_DIR}
 	if [ "" == "$(mount | grep ${PROFILE_LOG_DIR})" ]; then
 		mkdir -p /mnt/data/profiles/${BOARD_PROFILE}/logs
@@ -15,6 +16,12 @@ function mount_directories {
 		INFO "mount $(LIGHT_GREEN ${PROFILE_LOG_DIR})"
 		mkdir -p ${PROFILE_LOG_SYS_DIR}
 		mkdir -p ${PROFILE_LOG_APP_DIR}
+	fi
+
+	if [ "" == "$(mount | grep ${PROFILE_STORAGE_DIR})" ]; then
+		mkdir -p /mnt/data/profiles/${BOARD_PROFILE}/storage
+		mount -o bind /mnt/data/profiles/${BOARD_PROFILE}/storage ${PROFILE_STORAGE_DIR}
+		INFO "mount $(LIGHT_GREEN ${PROFILE_STORAGE_DIR})"
 	fi
 
 	if [ "" == "$(mount | grep ${PROFILE_CURRENT_DIR})" ]; then
