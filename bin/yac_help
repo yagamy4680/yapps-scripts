@@ -11,6 +11,8 @@ function yac_main {
 	echo -e "Here are supported commands:"
 
 	for i in "${FOUND_SCRIPTS[@]}" ; do
-		echo -e "\t$(BLUE $i)\t\t$(cat ${DIR}/${PREFIX}_$i | grep "^##DOC:" | awk -F'\t' '{print $2}')"
+		DESCRIPTION=$(cat ${DIR}/${PREFIX}_$i | grep "^##DOC:" | awk -F'\t' '{print $2}')
+		echo ${i} | awk '{printf "\033[36m%28s\033[0m  ", $1}'
+		echo ${DESCRIPTION}
 	done
 }
