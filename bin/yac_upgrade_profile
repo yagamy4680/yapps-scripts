@@ -25,22 +25,21 @@ function download_and_extract {
 
 	ARCHIVE=$(cat ${ARCHIVES} | tail -n1)
 	ARCHIVE_NAME="${ARCHIVE%%.*}"
-	ARCHIVE_URL="${RELEASE_URL}/yapps/profiles/${BOARD_PROFILE}/${ARCHIVE}"
+	PROFILE_ARCHIVE_URL="${RELEASE_URL}/yapps/profiles/${BOARD_PROFILE}/${ARCHIVE}"
 
-	INFO "downloading latest version $(LIGHT_GREEN ${ARCHIVE_URL})"
-	ARCHIVE_FILE="/tmp/${BOARD_PROFILE}-$(basename ${ARCHIVE_URL})"
+	INFO "downloading latest version $(LIGHT_GREEN ${PROFILE_ARCHIVE_URL})"
+	ARCHIVE_FILE="/tmp/${BOARD_PROFILE}-$(basename ${PROFILE_ARCHIVE_URL})"
 	http \
 		--check-status \
 		--ignore-stdin \
 		-a ${RELEASE_USER}:${RELEASE_PASS} \
 		--output ${ARCHIVE_FILE} \
-		${ARCHIVE_URL}
+		${PROFILE_ARCHIVE_URL}
 
 	if [ "0" != "$?" ]; then
-		ERR "failed to download ${ARCHIVE_URL}"
+		ERR "failed to download ${PROFILE_ARCHIVE_URL}"
 		exit 1
 	fi
-																	
 	INFO "successfully download $(basename ${ARCHIVE_FILE})"
 	TARGET_DIR="/mnt/app/profiles/${BOARD_PROFILE}/${ARCHIVE_NAME}"
 	mkdir -p ${TARGET_DIR}
@@ -48,6 +47,49 @@ function download_and_extract {
 	rm -f ${ARCHIVE_FILE}
 	rm -f ${ARCHIVES}
 	echo "${ARCHIVE_NAME}" > /mnt/app/profiles/${BOARD_PROFILE}/entry
+
+	PROJECT_TMP_DIR="/mnt/app/profiles/${BOARD_PROFILE}/${ARCHIVE_NAME}"
+	PROFILE_CURRENT_DIR=${PROJECT_TMP_DIR} \
+		NODEJS_MODULE_DIR=${PROFILE_CURRENT_DIR}/runtimes/nodejs/${NODEJS_VERSION} \
+		install_nodejs_modules_after_upgrade
+}
+
+
+
+function install_nodejs_modules_after_upgrade {
+	CURRENT=$(pwd)
+	[ -d ${NODEJS_MODULE_DIR}/node_modules ] && return
+
+	mkdir -p ${NODEJS_MODULE_DIR}
+
+	MODULES=$(cat ${PROFILE_CURRENT_DIR}/apps/packages.conf | tr '\t' '@' | tr '\n' ' ')
+	INFO "installing $(PURPLE ${MODULES}) ..."
+
+	source "$(dirname $0)/../externals/bash-utils/system"
+	initiate_linux_os_variables
+	INFO "OS_NAME = $(LIGHT_GREEN ${OS_NAME})"
+	INFO "OS_ARCH = $(LIGHT_GREEN ${OS_ARCH})"
+
+	MODULES_X=$(cat ${PROFILE_CURRENT_DIR}/apps/packages.conf | tr '\t' '@' | tr '\n' ' ' | sed 's/\ $//g' | tr ' ' ':')
+	ARCHIVE_DIR="/embedded-linux/nodejs-modules/${OS_NAME}/${OS_ARCH}/${NODEJS_VERSION}"
+	ARCHIVE_LIST="/tmp/archives.txt"
+
+	INFO "checking module archives cached at cloud: ${ARCHIVE_URL}${ARCHIVE_DIR}/$(basename ${ARCHIVE_LIST})"
+	http --check-status --ignore-stdin ${ARCHIVE_URL}${ARCHIVE_DIR}/$(basename ${ARCHIVE_LIST}) > ${ARCHIVE_LIST} 2>&1
+	[ "0" != "$?" ] && INFO "failed to download archives.txt from ${ARCHIVE_URL}${ARCHIVE_DIR}/$(basename ${ARCHIVE_LIST})"
+
+	UUID=$(cat ${ARCHIVE_LIST} | grep ${MODULES_X} | awk -F'\t' '{print $1}' | tail -n1)
+	[ "" == "${UUID}" ] && INFO "no matching modules" && return
+
+	INFO "downloading modules from cloud: $(YELLOW ${UUID}.tar.gz)"
+	http --check-status --ignore-stdin --output /tmp/${UUID}.tar.gz ${ARCHIVE_URL}${ARCHIVE_DIR}/${UUID}.tar.gz
+	[ "0" != "$?" ] && INFO "failed to download ${UUID}.tar.gz from ${ARCHIVE_URL}${ARCHIVE_DIR}/${UUID}.tar.gz" && return
+
+	RUN_CMD tar xf /tmp/${UUID}.tar.gz -C ${NODEJS_MODULE_DIR}
+	INFO "use downloaded module archive"
+
+	rm -f ${ARCHIVE_LIST}
+	rm -f /tmp/${UUID}.tar.gz
 }
 
 
