@@ -30,8 +30,32 @@ function init-yac-variables {
 	[ "" == "${RELEASE_PASS}" ] && export RELEASE_PASS=$(cat ${YS_DIR}/cloud.conf | grep "^RELEASE_PASS" | awk -F'\t' '{print $2}')
 
 	export RUNTIME_DIR="/mnt/app/runtimes"
-	export RUNTIME_NODEJS_DIR="${RUNTIME_DIR}/nodejs/${NODEJS_VERSION}"
-	export RUNTIME_PYTHON_DIR="${RUNTIME_DIR}/python/${PYTHON_VERSION}"
+
+	if [ "default" == "${NODEJS_VERSION}" ]; then
+		# When using system default nodejs pacakge, then 
+		# using `nodenv` to get the version and path of installed
+		# nodejs package.
+		#
+		# If `nodenv` is not setup yet, needs to activate 
+		# /opt/dotfiles/.bashrc
+		#
+		[ "" == "${HOME}" ] && export HOME=/root && INFO ""
+		[ "" == "${NODENV_SHELL}" ] && export PATH="/root/.nodenv/bin:$PATH" && eval "$(nodenv init -)"
+		[ "" == "${NODENV_SHELL}" ] && INFO "missing nodenv!!" && exit 1
+		local VERSION=$(nodenv version | awk '{print $1}')
+		local NODEDIR=$(dirname $(nodenv which node))
+		INFO "[default] nodejs.version = $(LIGHT_GREEN ${VERSION})"
+		INFO "[default] nodejs.path = $(LIGHT_GREEN ${NODEDIR})"
+		cd ${NODEDIR} && cd ..
+		export RUNTIME_NODEJS_DIR=$(pwd)
+		export NODEJS_VERSION=${VERSION}
+		cd ${TMP}
+	else
+		[ "" == "${RUNTIME_NODEJS_DIR}" ] && export RUNTIME_NODEJS_DIR="${RUNTIME_DIR}/nodejs/${NODEJS_VERSION}"
+	fi
+
+	export RUNTIME_DIR="/mnt/app/runtimes"
+	[ "" == "${RUNTIME_PYTHON_DIR}" ] && export RUNTIME_PYTHON_DIR="${RUNTIME_DIR}/python/${PYTHON_VERSION}"
 
 	export NODEJS_MODULE_DIR="${PROFILE_CURRENT_DIR}/runtimes/nodejs/${NODEJS_VERSION}"
 }
