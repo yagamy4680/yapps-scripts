@@ -89,7 +89,7 @@ function download_nodejs_modules {
 	rm -f ${ARCHIVE_LIST_FILE}
 	[ "" == "${UUID}" ] && INFO "no matching modules" && return 1
 
-	INFO "downloading modules from cloud: $(YELLOW ${UUID_GZIP_FILE})"
+	INFO "downloading modules from cloud: $(LIGHT_GREEN ${UUID_GZIP_FILE})"
 	http --check-status --ignore-stdin --output ${GZIPPED_FILE} "${SERVER_URL}${SERVER_DIR}/${UUID_GZIP_FILE}"
 	[ "0" != "$?" ] && INFO "failed to download ${UUID_GZIP_FILE} from ${SERVER_URL}${SERVER_DIR}/${UUID_GZIP_FILE}" && return 1
 
