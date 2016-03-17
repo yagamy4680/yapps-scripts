@@ -44,8 +44,8 @@ function init-yac-variables {
 		[ "" == "${NODENV_SHELL}" ] && INFO "missing nodenv!!" && exit 1
 		local VERSION=$(nodenv version | awk '{print $1}')
 		local NODEDIR=$(dirname $(nodenv which node))
-		INFO "[default] nodejs.version = $(LIGHT_GREEN ${VERSION})"
-		INFO "[default] nodejs.path = $(LIGHT_GREEN ${NODEDIR})"
+		DBG "[default] nodejs.version = $(LIGHT_GREEN ${VERSION})"
+		DBG "[default] nodejs.path = $(LIGHT_GREEN ${NODEDIR})"
 		cd ${NODEDIR} && cd ..
 		export RUNTIME_NODEJS_DIR=$(pwd)
 		export NODEJS_VERSION=${VERSION}
@@ -58,4 +58,44 @@ function init-yac-variables {
 	[ "" == "${RUNTIME_PYTHON_DIR}" ] && export RUNTIME_PYTHON_DIR="${RUNTIME_DIR}/python/${PYTHON_VERSION}"
 
 	export NODEJS_MODULE_DIR="${PROFILE_CURRENT_DIR}/runtimes/nodejs/${NODEJS_VERSION}"
+}
+
+
+function download_nodejs_modules {
+	local CURRENT=$(pwd)
+	local VERSION=$1
+	local CURRENT_OS_NAME=$2
+	local CURRENT_OS_ARCH=$3
+	local MODULE_DIR=$4
+	local MODULE_CONF=$5
+	local SERVER_URL=$6
+	local SERVER_DIR="/embedded-linux/nodejs-modules/${CURRENT_OS_NAME}/${CURRENT_OS_ARCH}/${VERSION}"
+	local ARCHIVE_LIST_FILE="/tmp/archives.txt"
+
+	[ -d ${MODULE_DIR}/node_modules ] && return 0 || mkdir -p ${MODULE_DIR}
+	[ ! -f ${MODULE_CONF} ] && INFO "missing ${MODULE_CONF}" && return 1
+	local MODULES=$(cat ${MODULE_CONF} | tr '\t' '@' | tr '\n' ' ')
+	local MODULES_X=$(echo ${MODULES} | sed 's/\ $//g' | tr ' ' ':')
+
+	INFO "installing $(PURPLE ${MODULES}) for $(LIGHT_GREEN ${CURRENT_OS_NAME})/$(LIGHT_GREEN ${CURRENT_OS_ARCH}) ..."
+
+	INFO "checking module archives cached at cloud: ${SERVER_URL}${SERVER_DIR}/$(basename ${ARCHIVE_LIST_FILE})"
+	http --check-status --ignore-stdin ${SERVER_URL}${SERVER_DIR}/$(basename ${ARCHIVE_LIST_FILE}) > ${ARCHIVE_LIST_FILE} 2>&1
+	[ "0" != "$?" ] && INFO "failed to download archives.txt from ${SERVER_URL}${SERVER_DIR}/$(basename ${ARCHIVE_LIST_FILE})"
+
+	local UUID=$(cat ${ARCHIVE_LIST_FILE} | grep ${MODULES_X} | awk -F'\t' '{print $1}' | tail -n1)
+	local UUID_GZIP_FILE="${UUID}.tar.gz"
+	local GZIPPED_FILE="/tmp/${UUID_GZIP_FILE}"
+	rm -f ${ARCHIVE_LIST_FILE}
+	[ "" == "${UUID}" ] && INFO "no matching modules" && return 1
+
+	INFO "downloading modules from cloud: $(YELLOW ${UUID_GZIP_FILE})"
+	http --check-status --ignore-stdin --output ${GZIPPED_FILE} "${SERVER_URL}${SERVER_DIR}/${UUID_GZIP_FILE}"
+	[ "0" != "$?" ] && INFO "failed to download ${UUID_GZIP_FILE} from ${SERVER_URL}${SERVER_DIR}/${UUID_GZIP_FILE}" && return 1
+
+	INFO "decompressing the downloaded module gzip file: ${GZIPPED_FILE}"
+	tar xf ${GZIPPED_FILE} -C ${MODULE_DIR}
+	[ "0" != "$?" ] && INFO "failed to uncompress ${GZIPPED_FILE}" && rm -f ${GZIPPED_FILE} && return 1
+	INFO "use downloaded module archive"
+	rm -f ${GZIPPED_FILE}
 }

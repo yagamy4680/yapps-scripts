@@ -6,7 +6,7 @@
 function yac_main {
 	source ${YAC_LIB_DIR}/system
 	INFO "checking node_modules: $(LIGHT_GREEN ${NODEJS_MODULE_DIR})"
-	install_nodejs_modules
+	install_modules
 
 	APP=$1
 	APP_DIR="${PROFILE_CURRENT_DIR}/apps/${APP}"
@@ -45,49 +45,25 @@ function yac_main {
 }
 
 
-function install_nodejs_modules {
-	CURRENT=$(pwd)
-	[ -d ${NODEJS_MODULE_DIR}/node_modules ] && return
-
-	mkdir -p ${NODEJS_MODULE_DIR}
-
-	MODULES=$(cat ${PROFILE_CURRENT_DIR}/apps/packages.conf | tr '\t' '@' | tr '\n' ' ')
-	INFO "installing $(PURPLE ${MODULES}) ..."
-
+function install_modules {
+	local CURRENT=$(pwd)
+	local MODULE_CONF="${PROFILE_CURRENT_DIR}/apps/packages.conf"
+	local MODULE_DIR="${PROFILE_CURRENT_DIR}/runtimes/nodejs/${NODEJS_VERSION}"
 	source "$(dirname $0)/../externals/bash-utils/system"
 	initiate_linux_os_variables
-	INFO "OS_NAME = $(LIGHT_GREEN ${OS_NAME})"
-	INFO "OS_ARCH = $(LIGHT_GREEN ${OS_ARCH})"
-
-	MODULES_X=$(cat ${PROFILE_CURRENT_DIR}/apps/packages.conf | tr '\t' '@' | tr '\n' ' ' | sed 's/\ $//g' | tr ' ' ':')
-	ARCHIVE_DIR="/embedded-linux/nodejs-modules/${OS_NAME}/${OS_ARCH}/${NODEJS_VERSION}"
-	ARCHIVE_LIST="/tmp/archives.txt"
-	INFO "checking module archives cached at cloud: ${ARCHIVE_URL}${ARCHIVE_DIR}/$(basename ${ARCHIVE_LIST})"
-	http --check-status --ignore-stdin ${ARCHIVE_URL}${ARCHIVE_DIR}/$(basename ${ARCHIVE_LIST}) > ${ARCHIVE_LIST} 2>&1
-
-	if [ "0" == "$?" ]; then
-		UUID=$(cat ${ARCHIVE_LIST} | grep ${MODULES_X} | awk -F'\t' '{print $1}' | tail -n1)
-		if [ "" != "${UUID}" ]; then
-			INFO "downloading modules from cloud: $(YELLOW ${UUID}.tar.gz)"
-			http --check-status --ignore-stdin --output /tmp/${UUID}.tar.gz ${ARCHIVE_URL}${ARCHIVE_DIR}/${UUID}.tar.gz
-			if [ "0" == "$?" ]; then
-				RUN_CMD tar xf /tmp/${UUID}.tar.gz -C ${NODEJS_MODULE_DIR}
-				[ "0" == "$?" ] && INFO "use downloaded module archive" && return
-			else
-				INFO "failed to download ${UUID}.tar.gz"
-			fi
-		else
-			INFO "no matching modules"
-		fi
+	if download_nodejs_modules \
+		${NODEJS_VERSION} \
+		${OS_NAME} \
+		${OS_ARCH} \
+		${MODULE_DIR} \
+		${MODULE_CONF} \
+		${ARCHIVE_URL} ; then
+		INFO "successfully install nodejs module"
 	else
-		INFO "failed to download archives.txt"
+		local MODULES=$(cat ${MODULE_CONF} | tr '\t' '@' | tr '\n' ' ')
+		local CMD="${RUNTIME_NODEJS_DIR}/bin/node ${RUNTIME_NODEJS_DIR}/bin/npm install ${MODULES}"
+		cd ${MODULE_DIR} && INFO "install command: $(YELLOW ${CMD})" && ${CMD}
 	fi
-	rm -f ${ARCHIVE_LIST}
-	rm -f /tmp/${UUID}.tar.gz
-
-	INFO "installation with npm, PATH = ${RUNTIME_NODEJS_DIR}/bin"
-	cd ${NODEJS_MODULE_DIR}
-	PATH="${RUNTIME_NODEJS_DIR}/bin:${PATH}" ${RUNTIME_NODEJS_DIR}/bin/node ${RUNTIME_NODEJS_DIR}/bin/npm install ${MODULES}
 	cd ${CURRENT}
 }
 

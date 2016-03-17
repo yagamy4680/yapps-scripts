@@ -1,0 +1,23 @@
+#!/bin/bash
+#
+##DOC:	test different features
+
+function test_download_nodejs_modules {
+	source /opt/yapps-scripts/externals/bash-utils/system
+	initiate_linux_os_variables
+	INFO "test_download_nodejs_modules: arguments => $@"
+	INFO "test_download_nodejs_modules: OS_NAME = ${OS_NAME}"
+	INFO "test_download_nodejs_modules: OS_ARCH = ${OS_ARCH}"
+	if download_nodejs_modules 4.4.0 ${OS_NAME} ${OS_ARCH} /tmp/4.4.0 /foop/current/apps/packages.conf https://archives.t2t.io ; then
+		INFO "test_download_nodejs_modules: successfully install nodejs modules"
+	else
+		INFO "test_download_nodejs_modules: failed to install nodejs modules"
+	fi
+}
+
+
+function yac_main {
+	NAME=$1
+	shift
+	${NAME} $@
+}
