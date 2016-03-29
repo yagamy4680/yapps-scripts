@@ -17,7 +17,7 @@ function connect_to_ap {
 	[ "" == "${WIFI_LOGFILE}" ] && WIFI_LOGFILE="/tmp/wireless-`date +%Y%m%d%H%M%S`-$1.log"
 
 	wpa_passphrase ${SSID} ${PASS} > /tmp/wireless_setting
-	wpa_supplicant -dd -Dwext -i ${WIRELESS_IF} -c/tmp/wireless_setting -f${WIFI_LOGFILE} -B > /dev/null 2>&1
+	wpa_supplicant -dd -t -Dwext -i ${WIRELESS_IF} -c/tmp/wireless_setting -f${WIFI_LOGFILE} -B > /dev/null 2>&1
 
 	times=0
 

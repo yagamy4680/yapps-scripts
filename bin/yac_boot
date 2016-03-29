@@ -56,13 +56,19 @@ function find_ap_and_connect {
 
 	# Read system settings for wireless
 	#
-	TMP2=$(mktemp /tmp/XXXXXX)
-	TMP3=$(mktemp /tmp/XXXXXX)
-	TMP4=$(mktemp /tmp/XXXXXX)
+	local TMP2=$(mktemp /tmp/XXXXXX)
+	local TMP3=$(mktemp /tmp/XXXXXX)
+	local TMP4=$(mktemp /tmp/XXXXXX)
 
 	[ "" == "${WIRELESS_KEYSTORES}" ] && WIRELESS_KEYSTORES="${YS_DIR}/wireless-keystores.conf"
 	[ ! -f "${WIRELESS_KEYSTORES}" ] && WIRELESS_KEYSTORES="${YS_DIR}/wireless-keystores.conf"
-	cat ${WIRELESS_KEYSTORES} | sed -e 's/^ *//' | sed -e 's/ *$//' | sed 's/#.*$//g' | grep -v "^$" | tr '\t' ':' | nl -nrz -w9 > ${TMP2}
+	local PROFILE_WIRELESS_KEYSTORES="${YS_DIR}/profiles/${BOARD_PROFILE}/wireless-keystores.conf"
+	if [ -f "${PROFILE_WIRELESS_KEYSTORES}" ]; then
+		cat ${PROFILE_WIRELESS_KEYSTORES} | sed -e 's/^ *//' | sed -e 's/ *$//' | sed 's/#.*$//g' | grep -v "^$" | tr '\t' ':' | nl -nrz -w9 > ${TMP2}
+	fi
+	if [ -f "${WIRELESS_KEYSTORES}" ]; then
+		cat ${WIRELESS_KEYSTORES} | sed -e 's/^ *//' | sed -e 's/ *$//' | sed 's/#.*$//g' | grep -v "^$" | tr '\t' ':' | nl -nrz -w9 >> ${TMP2}
+	fi
 	cat ${AP_LIST} | tr '\n' '\0' | xargs -0 -I{} sh -c "grep {} ${TMP2}" >> ${TMP3}
 	sort ${TMP3} | awk -F '\t' '{print $2}' > ${TMP4}
 	INFO "try access-points: $(BLUE $(cat ${TMP4} | awk -F ':' '{print $1}' | tr '\n' ' '))"
@@ -71,7 +77,6 @@ function find_ap_and_connect {
 	rm -f ${TMP3}
 	rm -f ${AP_LIST}
 
-	#WIFI_LOGFILE="${PROFILE_LOG_DIR}/wireless_`date +%Y%m%d%H%M%S`.log"
 	WIFI_LOGFILE="${PROFILE_LOG_SYS_DIR}/wireless_`date +%Y_%m%d_%H%M`.log"
 	TMP5=$(mktemp)
 	SETTINGS=($(cat ${TMP4}))
@@ -175,5 +180,6 @@ function yac_main {
 	generate_sys_info_and_notify_cloud
 	INFO "run_init_scripts"
 	run_init_scripts
+	INFO "yac_boot.end()"
 }
 
