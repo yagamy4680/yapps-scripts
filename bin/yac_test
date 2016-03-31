@@ -2,6 +2,10 @@
 #
 ##DOC:	test different features
 
+function notify_event {
+	call_func "yac_hook" "boot" $@
+}
+
 function test_download_nodejs_modules {
 	source /opt/yapps-scripts/externals/bash-utils/system
 	initiate_linux_os_variables
@@ -15,6 +19,26 @@ function test_download_nodejs_modules {
 	fi
 }
 
+function test_hook {
+	source "${PROFILE_CURRENT_DIR}/etc/.yac"
+	notify_event "begin"
+	notify_event "bootup_wireless_adapter"
+	notify_event "find_ap_and_connect"
+	notify_event "generate_sys_info_and_notify_cloud"
+	notify_event "init" "01_peripherals" "begin"
+	notify_event "init" "01_peripherals" "end"
+	notify_event "init" "21_tcp_proxy" "begin"
+	notify_event "init" "21_tcp_proxy" "end"
+	notify_event "init" "30_sensor_web" "begin"
+	notify_event "init" "30_sensor_web" "end"
+	notify_event "init" "40_foop_agent" "begin"
+	notify_event "init" "40_foop_agent" "end"
+	notify_event "init" "50_wstty_agent" "begin"
+	notify_event "init" "50_wstty_agent" "end"
+	notify_event "init" "80_timesync" "begin"
+	notify_event "init" "80_timesync" "end"
+	notify_event "end"
+}
 
 function yac_main {
 	NAME=$1

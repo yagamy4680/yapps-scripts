@@ -99,3 +99,14 @@ function download_nodejs_modules {
 	INFO "use downloaded module archive"
 	rm -f ${GZIPPED_FILE}
 }
+
+function function_exist {
+	declare -f -F $1 > /dev/null
+	return $?
+}
+
+function call_func {
+	local FUNC=$1
+	shift
+	function_exist ${FUNC} && ${FUNC} $@
+}

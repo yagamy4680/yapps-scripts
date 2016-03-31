@@ -29,6 +29,9 @@ function mount_directories {
 		INFO "mount $(LIGHT_GREEN ${PROFILE_CURRENT_DIR})"
 		mkdir -p ${PROFILE_CURRENT_LOG_DIR}
 	fi
+
+	local HOOK="${PROFILE_CURRENT_DIR}/etc/.yac"
+	[ -f "${HOOK}" ] && source ${HOOK} && INFO "source $(LIGHT_GREEN ${HOOK})"
 }
 
 function bootup_wireless_adapter {
@@ -160,10 +163,16 @@ function run_init_scripts {
 	SCRIPTS=($(find ${PROFILE_CURRENT_DIR}/etc/init.d/ -type f | sort))
 	for s in "${SCRIPTS[@]}"; do
 		INFO "executing $(LIGHT_GREEN ${BOARD_PROFILE}) / $(BLUE ${BOARD_PROFILE_VERSION}) / $(PURPLE $(basename $s)) ..."
+		notify_event "init" "$s" "begin"
 		PROFILE_CURRENT_DIR=${PROFILE_CURRENT_DIR} \
 			PROFILE_LOG_DIR=${PROFILE_LOG_DIR} \
 			$s
+		notify_event "init" "$s" "end"
 	done
+}
+
+function notify_event {
+	call_func "yac_hook" "boot" $@
 }
 
 function yac_main {
@@ -172,14 +181,20 @@ function yac_main {
 	check_prerequisites
 	INFO "mount_directories"
 	mount_directories
+	notify_event "begin"
 	INFO "bootup_wireless_adapter"
+	notify_event "bootup_wireless_adapter"
 	bootup_wireless_adapter
 	INFO "find_ap_and_connect"
+	notify_event "find_ap_and_connect"
 	find_ap_and_connect
+	notify_event "wireless" "${WIRELESS_CONNECTED}"
 	INFO "generate_sys_info_and_notify_cloud"
+	notify_event "generate_sys_info_and_notify_cloud"
 	generate_sys_info_and_notify_cloud
 	INFO "run_init_scripts"
 	run_init_scripts
+	notify_event "end"
 	INFO "yac_boot.end()"
 }
 
