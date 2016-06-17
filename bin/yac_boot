@@ -130,33 +130,57 @@ __EOF__
 cp /tmp/ttt_system ${PROJECT_LOG_DIR}/
 }
 
+function generate_id {
+	local BBB_EMMC_DRIVE="/dev/mmcblk1p2"
+	local BBB_EMMC_DIR="/mnt/emmc"
+	local BBB_ID_FILE="${BBB_EMMC_DIR}/yac.id"
+	if [ -b "${BBB_EMMC_DRIVE}" ]; then
+		mkdir -p ${BBB_EMMC_DIR} 2>&1 > /dev/null
+		mount -t ext4 ${BBB_EMMC_DRIVE} ${BBB_EMMC_DIR} 2>&1 > /dev/null
+		[ -f "${BBB_ID_FILE}" ] && cat ${BBB_ID_FILE} || find_unique_id
+	else
+		find_unique_id
+	fi
+}
 
 function generate_sys_info_and_notify_cloud {
-	export UNIQUE_ID="$(find_unique_id)"
+	export UNIQUE_ID="$(generate_id)"
 	export BOARD_NAME="$(uname -n)"
 	export MAC_ADDR=$(ifconfig ${WIRELESS_IF} | grep HWaddr | grep ${WIRELESS_IF} | sed 's/.*HWaddr //g')dd
 
 	if [ "true" == "${WIRELESS_CONNECTED}" ]; then
 		export MAC_ADDR=$(ifconfig ${WIRELESS_IF} | grep HWaddr | grep ${WIRELESS_IF} | sed 's/.*HWaddr //g')
-		RUN_CMD_STREAMING \
-			http \
-				--verbose \
-				--ignore-stdin \
-				https://ws.dhvac.io/api/models/${BOARD_NAME}.system \
-				profile=${BOARD_PROFILE} \
-				profile_version=${BOARD_PROFILE_VERSION} \
-				wireless_ap_mac=${WIRELESS_AP_MAC} \
-				wireless_ip_addr=${WIRELESS_IP_ADDR} \
-				wireless_mac_addr=${MAC_ADDR} \
-				wireless_handshake_time:=${WIRELESS_CONNECTING_TIME} \
-				wireless_ssid=${SSID} \
-				id=${UNIQUE_ID}
-		INFO "successfully https://ws.dhvac.io/api/models/${BOARD_NAME}.system"
+#		RUN_CMD_STREAMING \
+#			http \
+#				--verbose \
+#				--ignore-stdin \
+#				https://ws.dhvac.io/api/models/${BOARD_NAME}.system \
+#				profile=${BOARD_PROFILE} \
+#				profile_version=${BOARD_PROFILE_VERSION} \
+#				wireless_ap_mac=${WIRELESS_AP_MAC} \
+#				wireless_ip_addr=${WIRELESS_IP_ADDR} \
+#				wireless_mac_addr=${MAC_ADDR} \
+#				wireless_handshake_time:=${WIRELESS_CONNECTING_TIME} \
+#				wireless_ssid=${SSID} \
+#				id=${UNIQUE_ID}
+#		INFO "successfully https://ws.dhvac.io/api/models/${BOARD_NAME}.system"
 		generate_ttt_system
 	else
 		ERR "failed to connect to any access-point"
 		generate_ttt_system
 	fi
+
+	local TMP=$(mktemp /tmp/XXXXXX)
+	jo -p ttt_system=$(jo $(cat /tmp/ttt_system | tr '\t' '=' | tr '\n' ' ')) > ${TMP}
+	cat ${TMP}
+	RUN_CMD_STREAMING \
+		http \
+			--verbose \
+			--ignore-stdin \
+			https://registry.t2t.io/api/v1/update-node/${BOARD_PROFILE}/${UNIQUE_ID} \
+			metadata:=@${TMP}
+	INFO "successfully https://registry.t2t.io/api/v1/update-node/${BOARD_PROFILE}/${UNIQUE_ID}"
+	rm -f ${TMP}
 }
 
 function run_init_scripts {
