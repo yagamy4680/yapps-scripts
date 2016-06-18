@@ -143,8 +143,14 @@ function generate_id {
 	fi
 }
 
-function generate_sys_info_and_notify_cloud {
+function update_system_id {
 	export UNIQUE_ID="$(generate_id)"
+	[ "" == "${UNIQUE_ID}" ] && export UNIQUE_ID="yac-$(ifconfig eth0 | head -n1 | awk '{print $5}' | tr '[:upper:]' '[:lower:]' | sed 's/\://g')"
+	hostname ${UNIQUE_ID}
+	sed -i "s/^127\.0\.1\.1.*/127\.0\.1\.1\t$(hostname)\ $(hostname).localdomain/g" /etc/hosts
+}
+
+function generate_sys_info_and_notify_cloud {
 	export BOARD_NAME="$(uname -n)"
 	export MAC_ADDR=$(ifconfig ${WIRELESS_IF} | grep HWaddr | grep ${WIRELESS_IF} | sed 's/.*HWaddr //g')
 
@@ -190,6 +196,9 @@ function yac_main {
 	INFO "mount_directories"
 	mount_directories
 	notify_event "begin"
+	INFO "update_system_id"
+	update_system_id
+	notify_event "update_system_id" ${UNIQUE_ID}
 	INFO "bootup_wireless_adapter"
 	notify_event "bootup_wireless_adapter"
 	bootup_wireless_adapter
