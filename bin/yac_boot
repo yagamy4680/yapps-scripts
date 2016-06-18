@@ -158,7 +158,7 @@ function generate_sys_info_and_notify_cloud {
 
 	if [ "true" == "${WIRELESS_CONNECTED}" ]; then
 		local TMP=$(mktemp /tmp/XXXXXX)
-		jo -p ttt_system=$(jo $(cat /tmp/ttt_system | tr '\t' '=' | tr '\n' ' ')) > ${TMP}
+		jo -p ttt=$(jo $(cat /tmp/ttt_system | tr '\t' '=' | tr '\n' ' ')) > ${TMP}
 		cat ${TMP}
 		RUN_CMD_STREAMING \
 			http \
