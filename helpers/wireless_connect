@@ -27,8 +27,8 @@ function connect_to_ap {
 		times=$(($times+1))
 		if [ "$times" -gt 20 ];
 		then
-			INFO "${WIRELESS_IF} handshake timeout, more than 20 seconds"
-			return
+			INFO "${WIRELESS_IF} handshake timeout, more than 20 seconds, return 1"
+			return 1
 		fi
 		INFO "${WIRELESS_IF} waiting for wifi handshake with SSID $(BLUE ${SSID}) ..."
 	done
@@ -39,8 +39,8 @@ function connect_to_ap {
 		times=$(($times+1))
 		if [ "$times" -gt 20 ];
 		then
-			INFO "${WIRELESS_IF} authentication timeout, more than 20 seconds"
-			exit 1
+			INFO "${WIRELESS_IF} authentication timeout, more than 20 seconds, return 2"
+			return 2
 		fi
 		INFO "${WIRELESS_IF} waiting for wifi authentication with SSID $(BLUE ${SSID}) ..."
 	done
@@ -52,4 +52,5 @@ function connect_to_ap {
 
 	INFO "${WIRELESS_IF} restart bonjour service ..."
 	service avahi-daemon restart > /dev/null 2>&1
+	return 0
 }
