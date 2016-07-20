@@ -4,11 +4,11 @@
 
 
 function get_profile_archive_list {
-	OUTPUT=$1
-	TMP=$(mktemp /tmp/XXXXXX)
-	http -a ${RELEASE_USER}:${RELEASE_PASS} --check-status --ignore-stdin ${RELEASE_URL}/yapps/profiles/${BOARD_PROFILE}/ > ${TMP} 2>&1
+	local OUTPUT=$1
+	local TMP=$(mktemp /tmp/XXXXXX)
+	http -a ${RELEASE_USER}:${RELEASE_PASS} --check-status --ignore-stdin ${RELEASE_URL}/yapps/profiles/${BOARD_PROFILE}/0.${PROFILE_ENV}/ > ${TMP} 2>&1
 	if [ "0" == "$?" ]; then
-		cat ${TMP} | jq -r '.[] | .name' | sort > ${OUTPUT}
+		cat ${TMP} | jq -r '.[] | .name' | grep -v "^0\." | sort > ${OUTPUT}
 	else
 		touch ${OUTPUT}
 		cat ${TMP}
@@ -17,15 +17,27 @@ function get_profile_archive_list {
 }
 
 function download_and_extract {
-	INFO "checking latest version ..."
-	ARCHIVES=$(mktemp /tmp/XXXXXX)
-	get_profile_archive_list ${ARCHIVES}
-	COUNT=$(cat ${ARCHIVES} | wc -l | sed 's/\ //g')
-	[ "0" == "${COUNT}" ] && INFO "no archives for $(LIGHT_GREEN ${BOARD_PROFILE}) to download" && exit 1
+	local PROFILE_ENV=$1
+	local PROFILE_VERSION=$2
+	local ARCHIVES=$(mktemp /tmp/XXXXXX)
+	INFO "checking latest version for $(LIGHT_GREEN ${PROFILE_ENV})..."
+	PROFILE_ENV=${PROFILE_ENV} get_profile_archive_list ${ARCHIVES}
+	[ "0" == "$(cat ${ARCHIVES} | wc -l | sed 's/\ //g')" ] && INFO "no archives for $(LIGHT_GREEN ${BOARD_PROFILE}) to download" && rm -f ${ARCHIVES} && exit 1
 
-	ARCHIVE=$(cat ${ARCHIVES} | tail -n1)
-	ARCHIVE_NAME="${ARCHIVE%%.*}"
-	PROFILE_ARCHIVE_URL="${RELEASE_URL}/yapps/profiles/${BOARD_PROFILE}/${ARCHIVE}"
+	if [ "" == "${PROFILE_VERSION}" ]; then
+		local ARCHIVE=$(cat ${ARCHIVES} | tail -n1)
+	else
+		if [ "" == "$(cat ${ARCHIVES} | grep ${PROFILE_VERSION}.tar)" ]; then
+			INFO "no such version $(LIGHT_GREEN ${PROFILE_VERSION}) on server to download, please select one of following versions:"
+			cat ${ARCHIVES} | awk -F'.' '{printf "\t%s\n", $1}'
+			rm -f ${ARCHIVES}
+			exit 1
+		fi
+		local ARCHIVE="$(cat ${ARCHIVES} | grep ${PROFILE_VERSION}.tar)"
+	fi
+
+	local ARCHIVE_NAME="${ARCHIVE%%.*}"
+	local PROFILE_ARCHIVE_URL="${RELEASE_URL}/yapps/profiles/${BOARD_PROFILE}/0.${PROFILE_ENV}/${ARCHIVE}"
 
 	INFO "downloading latest version $(LIGHT_GREEN ${PROFILE_ARCHIVE_URL})"
 	ARCHIVE_FILE="/tmp/${BOARD_PROFILE}-$(basename ${PROFILE_ARCHIVE_URL})"
@@ -42,11 +54,13 @@ function download_and_extract {
 	fi
 	INFO "successfully download $(basename ${ARCHIVE_FILE})"
 	TARGET_DIR="/mnt/app/profiles/${BOARD_PROFILE}/${ARCHIVE_NAME}"
+	[ -d "${TARGET_DIR}/apps" ] && INFO "$(RED ${TARGET_DIR}) already exists. Going to overwrite it" && rm -rf ${TARGET_DIR}
 	mkdir -p ${TARGET_DIR}
 	RUN_CMD tar xvf ${ARCHIVE_FILE} -C ${TARGET_DIR}
 	rm -f ${ARCHIVE_FILE}
 	rm -f ${ARCHIVES}
 	echo "${ARCHIVE_NAME}" > /mnt/app/profiles/${BOARD_PROFILE}/entry
+	echo "${PROFILE_ENV}" > /mnt/app/profiles/${BOARD_PROFILE}/env
 
 	local MODULE_CONF="/mnt/app/profiles/${BOARD_PROFILE}/${ARCHIVE_NAME}/apps/packages.conf"
 	local MODULE_DIR="/mnt/app/profiles/${BOARD_PROFILE}/${ARCHIVE_NAME}/runtimes/nodejs/${NODEJS_VERSION}"
@@ -70,5 +84,8 @@ function download_and_extract {
 }
 
 function yac_main {
-	download_and_extract
+	local PROFILE_VERSION=${VERSION}
+	local PROFILE_ENV="development"
+	[ "" == "${ENV}" ] || PROFILE_ENV=${ENV}
+	download_and_extract ${PROFILE_ENV} ${PROFILE_VERSION}
 }

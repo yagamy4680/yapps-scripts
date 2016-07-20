@@ -12,7 +12,12 @@ function init-yac-variables {
 	[ "" == "${BOARD_PROFILE}" ] && export BOARD_PROFILE=$(cat /etc/environment | grep "^BOARD_PROFILE" | awk -F'=' '{print $2}')
 	[ "" == "${YS_DIR}" ] && export BOARD_PROFILE=$(cat /etc/environment | grep "^YS_DIR" | awk -F'=' '{print $2}')
 
+	[ -f "/mnt/app/profiles/${BOARD_PROFILE}/env" ] || {
+		echo "production" > /mnt/app/profiles/${BOARD_PROFILE}/env
+	}
+	export BOARD_PROFILE_ENV=$(cat /mnt/app/profiles/${BOARD_PROFILE}/env)
 	export BOARD_PROFILE_VERSION=$(cat /mnt/app/profiles/${BOARD_PROFILE}/entry)
+
 	export PROFILE_ROOT="/${BOARD_PROFILE}"
 	export PROFILE_LOG_DIR="${PROFILE_ROOT}/logs"
 	export PROFILE_LOG_SYS_DIR="${PROFILE_LOG_DIR}/system"
