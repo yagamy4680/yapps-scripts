@@ -1,0 +1,36 @@
+#!/bin/bash
+#
+##DOC:	show all environment variables availabe under yac XXX commands.
+
+function yac_main {
+IFS='' read -r -d '' ENVS <<__EOF__
+Environment
+    YS_DIR                  = $(LIGHT_GREEN ${YS_DIR})
+    YAC_DIR                 = $(LIGHT_GREEN ${YAC_DIR})
+    YAC_BIN_DIR             = $(LIGHT_GREEN ${YAC_BIN_DIR})
+    YAC_LIB_DIR             = $(LIGHT_GREEN ${YAC_LIB_DIR})
+    PROFILE_ROOT            = $(LIGHT_GREEN ${PROFILE_ROOT})
+    PROFILE_LOG_DIR         = $(LIGHT_GREEN ${PROFILE_LOG_DIR})
+    PROFILE_LOG_SYS_DIR     = $(LIGHT_GREEN ${PROFILE_LOG_SYS_DIR})
+    PROFILE_LOG_APP_DIR     = $(LIGHT_GREEN ${PROFILE_LOG_APP_DIR})
+    PROFILE_STORAGE_DIR     = $(LIGHT_GREEN ${PROFILE_STORAGE_DIR})
+    PROFILE_CURRENT_DIR     = $(LIGHT_GREEN ${PROFILE_CURRENT_DIR})
+    PROFILE_CURRENT_LOG_DIR = $(LIGHT_GREEN ${PROFILE_CURRENT_LOG_DIR})
+    --------------------------------------------------------
+    NODEJS_VERSION          = $(PURPLE ${NODEJS_VERSION})
+    RUNTIME_NODEJS_DIR      = $(LIGHT_GREEN ${RUNTIME_NODEJS_DIR})
+    --------------------------------------------------------
+    BOARD_PROFILE           = $(PURPLE ${BOARD_PROFILE})
+    BOARD_PROFILE_ENV       = $(PURPLE $(cat /mnt/app/profiles/${BOARD_PROFILE}/env.old)) (next: $(YELLOW ${BOARD_PROFILE_ENV}))
+    BOARD_PROFILE_VERSION   = $(PURPLE $(mount | grep "/${BOARD_PROFILE}/current" | awk '{print $1}' | awk -F'/' '{print $6}')) (next: $(YELLOW ${BOARD_PROFILE_VERSION})) 
+    --------------------------------------------------------
+    ARCHIVE_URL             = $(YELLOW ${ARCHIVE_URL})
+    RELEASE_URL             = $(YELLOW ${RELEASE_URL})
+    RELEASE_USER            = $(YELLOW ${RELEASE_USER})
+
+
+/tmp/ttt_system
+$(cat /tmp/ttt_system | awk '{printf "    %s\n", $0}')
+__EOF__
+echo -en "${ENVS}"
+}

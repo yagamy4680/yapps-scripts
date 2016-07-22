@@ -15,6 +15,7 @@ function init-yac-variables {
 	[ -f "/mnt/app/profiles/${BOARD_PROFILE}/env" ] || {
 		echo "production" > /mnt/app/profiles/${BOARD_PROFILE}/env
 	}
+	cat /mnt/app/profiles/${BOARD_PROFILE}/env > /mnt/app/profiles/${BOARD_PROFILE}/env.old
 	export BOARD_PROFILE_ENV=$(cat /mnt/app/profiles/${BOARD_PROFILE}/env)
 	export BOARD_PROFILE_VERSION=$(cat /mnt/app/profiles/${BOARD_PROFILE}/entry)
 
