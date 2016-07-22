@@ -59,11 +59,9 @@ function download_and_extract {
 	RUN_CMD tar xvf ${ARCHIVE_FILE} -C ${TARGET_DIR}
 	rm -f ${ARCHIVE_FILE}
 	rm -f ${ARCHIVES}
-	INFO "write $(YELLOW ${ARCHIVE_NAME}) to /mnt/app/profiles/${BOARD_PROFILE}/entry"
+	INFO "update /mnt/app/profiles/${BOARD_PROFILE}/entry with $(YELLOW ${ARCHIVE_NAME})"
 	echo "${ARCHIVE_NAME}" > /mnt/app/profiles/${BOARD_PROFILE}/entry
-	INFO "backup /mnt/app/profiles/${BOARD_PROFILE}/env"
-	cat /mnt/app/profiles/${BOARD_PROFILE}/env > /mnt/app/profiles/${BOARD_PROFILE}/env.old
-	INFO "write $(YELLOW ${PROFILE_ENV}) to /mnt/app/profiles/${BOARD_PROFILE}/env"
+	INFO "switch /mnt/app/profiles/${BOARD_PROFILE}/env to $(YELLOW ${PROFILE_ENV})"
 	echo "${PROFILE_ENV}" > /mnt/app/profiles/${BOARD_PROFILE}/env
 
 	local MODULE_CONF="/mnt/app/profiles/${BOARD_PROFILE}/${ARCHIVE_NAME}/apps/packages.conf"

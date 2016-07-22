@@ -21,7 +21,7 @@ Environment
     RUNTIME_NODEJS_DIR      = $(LIGHT_GREEN ${RUNTIME_NODEJS_DIR})
     --------------------------------------------------------
     BOARD_PROFILE           = $(PURPLE ${BOARD_PROFILE})
-    BOARD_PROFILE_ENV       = $(PURPLE $(cat /mnt/app/profiles/${BOARD_PROFILE}/env.old)) (next: $(YELLOW ${BOARD_PROFILE_ENV}))
+    BOARD_PROFILE_ENV       = $(PURPLE ${BOARD_PROFILE_ENV})
     BOARD_PROFILE_VERSION   = $(PURPLE $(mount | grep "/${BOARD_PROFILE}/current" | awk '{print $1}' | awk -F'/' '{print $6}')) (next: $(YELLOW ${BOARD_PROFILE_VERSION})) 
     --------------------------------------------------------
     ARCHIVE_URL             = $(YELLOW ${ARCHIVE_URL})
