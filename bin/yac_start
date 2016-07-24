@@ -5,8 +5,10 @@
 
 function yac_main {
 	source ${YAC_LIB_DIR}/system
-	INFO "checking node_modules: $(LIGHT_GREEN ${NODEJS_MODULE_DIR})"
-	install_modules
+	[ "true" == "${IGNORE_NODE_MODUEL_CHECKING}" ] || {
+		INFO "checking node_modules: $(LIGHT_GREEN ${NODEJS_MODULE_DIR})"
+		install_modules
+	}
 
 	APP=$1
 	APP_DIR="${PROFILE_CURRENT_DIR}/apps/${APP}"

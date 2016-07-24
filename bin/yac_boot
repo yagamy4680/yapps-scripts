@@ -224,6 +224,7 @@ function run_init_scripts {
 		notify_event "init" "$s" "begin"
 		PROFILE_CURRENT_DIR=${PROFILE_CURRENT_DIR} \
 			PROFILE_LOG_DIR=${PROFILE_LOG_DIR} \
+			IGNORE_NODE_MODUEL_CHECKING=true \
 			$s
 		notify_event "init" "$s" "end"
 	done
