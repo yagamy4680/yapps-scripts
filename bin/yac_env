@@ -23,6 +23,12 @@ Environment
     BOARD_PROFILE           = $(PURPLE ${BOARD_PROFILE})
     BOARD_PROFILE_ENV       = $(PURPLE ${BOARD_PROFILE_ENV})
     BOARD_PROFILE_VERSION   = $(PURPLE $(mount | grep "/${BOARD_PROFILE}/current" | awk '{print $1}' | awk -F'/' '{print $6}')) (next: $(YELLOW ${BOARD_PROFILE_VERSION})) 
+    BOARD_UNIQUE_ID         = $(PURPLE $(cat /tmp/ttt_system | grep "^id" | awk '{print $2}'))
+    BOARD_SERIAL_NUMBER     = $(PURPLE $(cat /tmp/ttt_system | grep "^sn" | awk '{print $2}'))
+    BOARD_BASE_VERSION      = $(PURPLE ${BOARD_BASE_VERSION})
+    KERNEL                  = $(YELLOW $(uname -r))
+    ARCHITECTURE            = $(YELLOW $(uname -m))
+    DISTRIBUTION            = $(YELLOW $(lsb_release -a 2>/dev/null | grep "Description" | awk -F':' '{print $2}' | sed 's/\t//g'))
     --------------------------------------------------------
     ARCHIVE_URL             = $(YELLOW ${ARCHIVE_URL})
     RELEASE_URL             = $(YELLOW ${RELEASE_URL})
