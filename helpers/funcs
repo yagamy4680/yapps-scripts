@@ -9,8 +9,10 @@ function init-yac-variables {
 	export YAC_LIB_DIR="${YAC_DIR}/helpers"
 	cd ${TMP}
 
+	[ "" == "${YS_DIR}" ] && export YS_DIR=$(cat /etc/environment | grep "^YS_DIR" | awk -F'=' '{print $2}')
 	[ "" == "${BOARD_PROFILE}" ] && export BOARD_PROFILE=$(cat /etc/environment | grep "^BOARD_PROFILE" | awk -F'=' '{print $2}')
-	[ "" == "${YS_DIR}" ] && export BOARD_PROFILE=$(cat /etc/environment | grep "^YS_DIR" | awk -F'=' '{print $2}')
+	[ "" == "${BOARD_BASE_VERSION}" ] && export BOARD_BASE_VERSION=$(cat /etc/environment | grep "^BOARD_BASE_VERSION" | awk -F'=' '{print $2}')
+	[ "" == "${BOARD_BASE_VERSION}" ] && BOARD_BASE_VERSION="99991231z"
 
 	[ -f "/mnt/app/profiles/${BOARD_PROFILE}/env" ] || {
 		echo "production" > /mnt/app/profiles/${BOARD_PROFILE}/env

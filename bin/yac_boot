@@ -121,8 +121,10 @@ function find_ap_and_connect {
 
 function generate_ttt_system {
 cat << __EOF__ > /tmp/ttt_system
-id	${UNIQUE_ID}
+id	${BOARD_UNIQUE_ID}
+sn	${BOARD_SERIAL_NUMBER}
 alias	${BOARD_NAME}
+base_version	${BOARD_BASE_VERSION}
 profile	${BOARD_PROFILE}
 profile_version	${BOARD_PROFILE_VERSION}
 profile_env	${BOARD_PROFILE_ENV}
@@ -132,26 +134,63 @@ wireless_mac_addr	${MAC_ADDR}
 wireless_handshake_time	${WIRELESS_CONNECTING_TIME}
 wireless_ssid	${SSID}
 __EOF__
-cp /tmp/ttt_system ${PROJECT_LOG_DIR}/
 }
 
+# Generate 2 variables, and export them:
+#    - BOARD_SERIAL_NUMBER    (e.g. `bbg-BBG115081198`)
+#    - BOARD_UNIQUE_ID        (e.g. `F99900011`)
+#
 function generate_id {
-	local BBB_EMMC_DRIVE="/dev/mmcblk1p2"
-	local BBB_EMMC_DIR="/mnt/emmc"
-	local BBB_ID_FILE="${BBB_EMMC_DIR}/yac.id"
-	if [ -b "${BBB_EMMC_DRIVE}" ]; then
-		mkdir -p ${BBB_EMMC_DIR} 2>&1 > /dev/null
-		mount -t ext4 ${BBB_EMMC_DRIVE} ${BBB_EMMC_DIR} 2>&1 > /dev/null
-		[ -f "${BBB_ID_FILE}" ] && cat ${BBB_ID_FILE} || find_unique_id
+	local BEAGLEBONE_ID=$(read_bbb_id)
+	local RPI_ID=$(read_rpi2_id)
+	local YAC_BSN_FILE="yac.bsn"
+	local YAC_ID_FILE="yac.id"
+
+	if [ "" != ${BEAGLEBONE_ID} ]; then
+		# It's BeagleBone-Black series: BBB/BBG/BBG-Wirelss/IPCS
+		#
+		export BOARD_SERIAL_NUMBER=${BEAGLEBONE_ID}
+		export BOARD_UNIQUE_ID=${BEAGLEBONE_ID}
+		local EMMC_PARTITION="/dev/mmcblk1p2"
+		local EMMC_DIRECTORY="/mnt/emmc"
+
+		if [ -b "${EMMC_PARTITION}" ]; then
+			# Booting from SD card. (so both /dev/mmcblk0 and /dev/mmcblk1 exist)
+			# 
+			mkdir -p ${EMMC_DIRECTORY} 2>&1 > /dev/null
+			mount -t ext4 ${EMMC_PARTITION} ${EMMC_DIRECTORY} 2>&1 > /dev/null
+			[ -f "${EMMC_DIRECTORY}/${YAC_BSN_FILE}" ] && BOARD_SERIAL_NUMBER=$(cat "${EMMC_DIRECTORY}/${YAC_BSN_FILE}")
+			[ -f "${EMMC_DIRECTORY}/${YAC_ID_FILE}" ]  && BOARD_UNIQUE_ID=$(cat "${EMMC_DIRECTORY}/${YAC_ID_FILE}")
+		else
+			# Booting from eMMC (so only /dev/mmcblk0 exists)
+			# 
+			[ -f "/${YAC_ID_FILE}" ] && BOARD_UNIQUE_ID=$(cat "/${YAC_ID_FILE}")
+		fi
+	elif [ "" != ${RPI_ID} ]; then
+		# It's RPi2/3, boots from SD card
+		#
+		export BOARD_SERIAL_NUMBER=${RPI_ID}
+		export BOARD_UNIQUE_ID=${RPI_ID}
+		[ -f "/${YAC_ID_FILE}" ] && BOARD_UNIQUE_ID=$(cat "/${YAC_ID_FILE}")
 	else
-		find_unique_id
+		export BOARD_SERIAL_NUMBER=$(generate_unique_id "devboard")
+		export BOARD_UNIQUE_ID=${BOARD_SERIAL_NUMBER}
 	fi
+
+	[ "" == "${BOARD_UNIQUE_ID}" ] && BOARD_UNIQUE_ID="yac-$(ifconfig eth0 | head -n1 | awk '{print $5}' | tr '[:upper:]' '[:lower:]' | sed 's/\://g')"
+	[ "" == "${BOARD_SERIAL_NUMBER}" ] && BOARD_SERIAL_NUMBER=${BOARD_UNIQUE_ID}
 }
 
 function update_system_id {
-	export UNIQUE_ID="$(generate_id)"
-	[ "" == "${UNIQUE_ID}" ] && export UNIQUE_ID="yac-$(ifconfig eth0 | head -n1 | awk '{print $5}' | tr '[:upper:]' '[:lower:]' | sed 's/\://g')"
-	hostname ${UNIQUE_ID}
+	generate_id
+	INFO "METADATA: kernel                = $(YELLOW $(uname -r))"
+	INFO "METADATA: distribution          = $(YELLOW $(lsb_release -a 2>/dev/null | grep "Description" | awk -F':' '{print $2}' | sed 's/\t//g'))"
+	INFO "METADATA: BOARD_UNIQUE_ID       = $(YELLOW ${BOARD_UNIQUE_ID})"
+	INFO "METADATA: BOARD_SERIAL_NUMBER   = $(YELLOW ${BOARD_SERIAL_NUMBER})"
+	INFO "METADATA: BOARD_BASE_VERSION    = $(YELLOW ${BOARD_BASE_VERSION})"
+	INFO "METADATA: BOARD_PROFILE         = $(YELLOW ${BOARD_PROFILE})"
+	INFO "METADATA: BOARD_PROFILE_VERSION = $(YELLOW ${BOARD_PROFILE_VERSION})"
+	hostname ${BOARD_UNIQUE_ID}
 	sed -i "s/^127\.0\.1\.1.*/127\.0\.1\.1\t$(hostname)\ $(hostname).localdomain/g" /etc/hosts
 }
 
@@ -169,9 +208,9 @@ function generate_sys_info_and_notify_cloud {
 			http \
 				--verbose \
 				--ignore-stdin \
-				https://registry.t2t.io/api/v1/update-node/${BOARD_PROFILE}/${UNIQUE_ID} \
+				https://registry.t2t.io/api/v1/update-node/${BOARD_PROFILE}/${BOARD_UNIQUE_ID} \
 				metadata:=@${TMP}
-		INFO "successfully https://registry.t2t.io/api/v1/update-node/${BOARD_PROFILE}/${UNIQUE_ID}"
+		INFO "successfully https://registry.t2t.io/api/v1/update-node/${BOARD_PROFILE}/${BOARD_UNIQUE_ID}"
 		rm -f ${TMP}
 	else
 		ERR "failed to connect to any access-point"
@@ -203,7 +242,7 @@ function yac_main {
 	notify_event "begin"
 	INFO "update_system_id"
 	update_system_id
-	notify_event "update_system_id" ${UNIQUE_ID}
+	notify_event "update_system_id" ${BOARD_UNIQUE_ID}
 	INFO "bootup_wireless_adapter"
 	notify_event "bootup_wireless_adapter"
 	bootup_wireless_adapter
