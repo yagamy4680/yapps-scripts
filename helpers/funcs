@@ -36,6 +36,10 @@ function init-yac-variables {
 	[ "" == "${RELEASE_URL}" ] && export RELEASE_URL=$(cat ${YS_DIR}/cloud.conf | grep "^RELEASE_URL" | awk -F'\t' '{print $2}')
 	[ "" == "${RELEASE_USER}" ] && export RELEASE_USER=$(cat ${YS_DIR}/cloud.conf | grep "^RELEASE_USER" | awk -F'\t' '{print $2}')
 	[ "" == "${RELEASE_PASS}" ] && export RELEASE_PASS=$(cat ${YS_DIR}/cloud.conf | grep "^RELEASE_PASS" | awk -F'\t' '{print $2}')
+	[ "" == "${FILE_FC}" ] && export FILE_FC=$(cat ${YS_DIR}/cloud.conf | grep "^FILE_FC" | awk -F'\t' '{print $2}')
+	[ "" == "${FILE_SITE}" ] && export FILE_SITE=$(cat ${YS_DIR}/cloud.conf | grep "^FILE_SITE" | awk -F'\t' '{print $2}')
+	[ "" == "${FILE_USER}" ] && export FILE_USER=$(cat ${YS_DIR}/cloud.conf | grep "^FILE_USER" | awk -F'\t' '{print $2}')
+	[ "" == "${FILE_PSWD}" ] && export FILE_PSWD=$(cat ${YS_DIR}/cloud.conf | grep "^FILE_PSWD" | awk -F'\t' '{print $2}')
 
 	export RUNTIME_DIR="/mnt/app/runtimes"
 

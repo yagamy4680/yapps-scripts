@@ -33,7 +33,9 @@ Environment
     ARCHIVE_URL             = $(YELLOW ${ARCHIVE_URL})
     RELEASE_URL             = $(YELLOW ${RELEASE_URL})
     RELEASE_USER            = $(YELLOW ${RELEASE_USER})
-
+    FILE_FC                 = $(YELLOW ${FILE_FC})
+    FILE_SITE               = $(YELLOW ${FILE_SITE})
+    FILE_USER               = $(YELLOW ${FILE_USER})
 
 /tmp/ttt_system
 $(cat /tmp/ttt_system | awk '{printf "    %s\n", $0}')
