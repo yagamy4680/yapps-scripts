@@ -1,0 +1,66 @@
+#!/bin/bash
+#
+##DOC:	upload any file onto FC_SITE
+
+function upload_rootfs_file {
+	local TARGET_FILE=$1
+	[ ! -f "${TARGET_FILE}" ] && ERR "no such file ${TARGET_FILE}" && exit 1
+	local CURRENT=$(pwd)
+	cd $(dirname ${TARGET_FILE})
+	local TARGET_FILENAME=$(basename ${TARGET_FILE})
+	local TARGET_DIR=$(pwd)
+	local PARENT_DIR="${FC_PARENT_DIR}/rootfs"
+	[ "" == "${FILE_USER}" ] && local AUTH_OPTS="" || local AUTH_OPTS="-a ${FILE_USER}:${FILE_PSWD}"
+
+	INFO "uploading $(LIGHT_GREEN ${TARGET_DIR}/${TARGET_FILENAME})"
+
+	RUN_CMD \
+		http \
+			--form \
+			--check-status \
+			--ignore-stdin \
+			${AUTH_OPTS} \
+			${FILE_FC}/api/v1/c/upload \
+			site=${FILE_SITE} \
+			content@${TARGET_DIR}/${TARGET_FILENAME} \
+			directory=${PARENT_DIR}${TARGET_DIR} \
+			overwrite:=true
+
+	[ "0" != "$?" ] && ERR "failed to upload" && exit 1
+	INFO "saved to https://${FILE_SITE}/${PARENT_DIR}${TARGET_DIR}/${TARGET_FILENAME}"
+}
+
+function print_help {
+cat << __EOF__
+yac upload rootfs FULLPATH
+
+E.g.
+	yac upload rootfs /var/log/syslog
+		Upload /var/log/syslog onto FC site. For example, the /var/log/syslog is uploaded onto
+		https://files.t2t.io/projects/foop/nodes/F99900013/rootfs/var/log/syslog
+__EOF__
+}
+
+
+function yac_main {
+	export BOARD_UNIQUE_ID=$(cat /tmp/ttt_system | grep "^id" | awk '{print $2}')
+	export BOARD_SERIAL_NUMBER=$(cat /tmp/ttt_system | grep "^sn" | awk '{print $2}')
+	[ "" == "${BOARD_UNIQUE_ID}" ] && BOARD_UNIQUE_ID="unknown"
+	[ "" == "${BOARD_SERIAL_NUMBER}" ] && BOARD_SERIAL_NUMBER="unknown"
+	export FC_PARENT_DIR="projects/${BOARD_PROFILE}/nodes/${BOARD_UNIQUE_ID}"
+	
+	local CMD=$1
+	shift
+	case "${CMD}" in
+		rootfs)
+			upload_rootfs_file $@
+			;;
+		help)
+			print_help
+			;;
+		*)
+			print_help
+			;;
+	esac
+}
+
