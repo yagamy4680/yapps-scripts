@@ -6,7 +6,14 @@
 function get_profile_archive_list {
 	local OUTPUT=$1
 	local TMP=$(mktemp /tmp/XXXXXX)
-	http -a ${RELEASE_USER}:${RELEASE_PASS} --check-status --ignore-stdin ${RELEASE_URL}/yapps/profiles/${BOARD_PROFILE}/0.${PROFILE_ENV}/ > ${TMP} 2>&1
+	http \
+		-a ${RELEASE_USER}:${RELEASE_PASS} \
+		--check-status \
+		--ignore-stdin \
+		${RELEASE_URL}/yapps/profiles/${BOARD_PROFILE}/0.${PROFILE_ENV}/ \
+		board_unique_id==${BOARD_UNIQUE_ID} \
+		board_serial_number==${BOARD_SERIAL_NUMBER} \
+		> ${TMP} 2>&1
 	if [ "0" == "$?" ]; then
 		cat ${TMP} | jq -r '.[] | .name' | grep -v "^0\." | sort > ${OUTPUT}
 	else
@@ -46,7 +53,9 @@ function download_and_extract {
 		--ignore-stdin \
 		-a ${RELEASE_USER}:${RELEASE_PASS} \
 		--output ${ARCHIVE_FILE} \
-		${PROFILE_ARCHIVE_URL}
+		${PROFILE_ARCHIVE_URL} \
+		board_unique_id==${BOARD_UNIQUE_ID} \
+		board_serial_number==${BOARD_SERIAL_NUMBER}
 
 	if [ "0" != "$?" ]; then
 		ERR "failed to download ${PROFILE_ARCHIVE_URL}"
@@ -89,5 +98,12 @@ function yac_main {
 	local PROFILE_VERSION=${VERSION}
 	local PROFILE_ENV="development"
 	[ "" == "${ENV}" ] || PROFILE_ENV=${ENV}
+
+	export BOARD_UNIQUE_ID=$(cat /tmp/ttt_system | grep "^id" | awk '{print $2}')
+	export BOARD_SERIAL_NUMBER=$(cat /tmp/ttt_system | grep "^sn" | awk '{print $2}')
+	[ "" == "${BOARD_UNIQUE_ID}" ] && BOARD_UNIQUE_ID="unknown"
+	[ "" == "${BOARD_SERIAL_NUMBER}" ] && BOARD_SERIAL_NUMBER="unknown"
+
 	download_and_extract ${PROFILE_ENV} ${PROFILE_VERSION}
+
 }
