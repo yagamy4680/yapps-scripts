@@ -30,14 +30,109 @@ function upload_rootfs_file {
 	INFO "saved to https://${FILE_SITE}/${PARENT_DIR}${TARGET_DIR}/${TARGET_FILENAME}"
 }
 
+function upload_archive_internal {
+	local TAG=$1
+	local FILELIST=$2
+	local DATETIME=$(date '+%Y%m%d_%H%M')
+	local ARCHIVE_DIR="/tmp/${DATETIME}"
+	local ARCHIVE="/tmp/${DATETIME}.tar.gz"
+	local CURRENT=$(pwd)
+
+	mkdir -p ${ARCHIVE_DIR}
+
+	while read LINE; do
+		if [ -f "${LINE}" ]; then
+			local FILE=${LINE}
+			local FILENAME=$(basename ${FILE})
+			cd $(dirname ${FILE})
+			local TARGET_DIR="${ARCHIVE_DIR}$(pwd)"
+			mkdir -p ${TARGET_DIR}
+			RUN_CMD cp -v ${FILE} ${TARGET_DIR}/${FILENAME}
+			cd ${CURRENT}
+		elif [ -d "${LINE}" ]; then
+			cd ${LINE}
+			local DIR=$(pwd)
+			local TARGET_DIR="${ARCHIVE_DIR}$(pwd)"
+			mkdir -p ${TARGET_DIR}
+			RUN_CMD_STREAMING cp -vR ${DIR}/* ${TARGET_DIR}/
+			cd ${CURRENT}
+		else
+			ERR "no such ${LINE} file or directory"
+		fi
+	done < ${FILELIST}
+
+	cd ${ARCHIVE_DIR}
+	INFO "archiving ${ARCHIVE_DIR} ..."
+	tar czf ${ARCHIVE} .
+
+	local PARENT_DIR="${FC_PARENT_DIR}/${TAG}"
+	[ "" == "${FILE_USER}" ] && local AUTH_OPTS="" || local AUTH_OPTS="-a ${FILE_USER}:${FILE_PSWD}"
+
+	INFO "uploading $(LIGHT_GREEN ${ARCHIVE})"
+	RUN_CMD \
+		http \
+			--form \
+			--check-status \
+			--ignore-stdin \
+			${AUTH_OPTS} \
+			${FILE_FC}/api/v1/c/upload \
+			site=${FILE_SITE} \
+			content@${ARCHIVE} \
+			directory=${PARENT_DIR} \
+			overwrite:=true
+
+	[ "0" != "$?" ] && ERR "failed to upload" || INFO "successfully uploaded: https://${FILE_SITE}/${PARENT_DIR}/$(basename ${ARCHIVE})"
+	rm -rf ${ARCHIVE_DIR}
+}
+
+function upload_archive {
+	[ "" == "$1" ] && INFO "missing TAG" && exit 1
+	local TMP=$(mktemp /tmp/XXXXXX)
+
+	while read LINE; do
+		echo "${LINE}" >> ${TMP}
+		INFO "reading from stdin: $(YELLOW ${LINE})"
+	done < /dev/stdin
+	
+	[ "0" == "$(cat ${TMP} | wc -l)" ] && [ "" == "$2" ] && INFO "missing filelist" && exit 1
+	[ "" == "$2" ] && upload_archive_internal $1 ${TMP} || upload_archive_internal $@
+
+	rm -f ${TMP}
+}
+
 function print_help {
 cat << __EOF__
 yac upload rootfs FULLPATH
 
 E.g.
-	yac upload rootfs /var/log/syslog
-		Upload /var/log/syslog onto FC site. For example, the /var/log/syslog is uploaded onto
-		https://files.t2t.io/projects/foop/nodes/F99900013/rootfs/var/log/syslog
+	Upload /var/log/syslog onto FC site. For example, the /var/log/syslog is uploaded onto
+	https://files.t2t.io/projects/foop/nodes/F99900013/rootfs/var/log/syslog
+
+		$ yac upload rootfs /var/log/syslog
+
+
+
+yac upload archive TAG [FILE-LIST.txt]
+
+The subcommand supports to read file list from stdin, or a text file specified as 2nd 
+argument.
+
+E.g.
+	Compose an tar.gz archive with 2 files '/var/log/syslog' and '/foop/current/logs/sensor-web.log', 
+	name it as '201607122355.tar.gz', and upload onto FC site:
+	https://files.t2t.io/projects/foop/nodes/F99900013/logs/201607122355.tar.gz
+
+		$ echo -e '/var/log/syslog\\n/foop/current/logs/sensor-web.log' | yac upload archive logs
+
+
+	Similar to above example, but read file list from '/tmp/filelist.txt' and compose
+	'201607122355.tar.gz' to upload onto FC site: https://files.t2t.io/projects/foop/nodes/F99900013/userdata/201607122355.tar.gz
+
+		$ echo '/foop/storage/recipe.context.json' > /tmp/filelist.txt
+		$ echo '/foop/storage/session.json' >> /tmp/filelist.txt
+		$ echo '/opt/ys/profiles/foop/wireless-keystores.conf' >> /tmp/filelist.txt
+		$ yac upload archive userdata /tmp/filelist.txt
+
 __EOF__
 }
 
@@ -54,6 +149,9 @@ function yac_main {
 	case "${CMD}" in
 		rootfs)
 			upload_rootfs_file $@
+			;;
+		archive)
+			upload_archive $@
 			;;
 		help)
 			print_help
