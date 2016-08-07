@@ -88,6 +88,7 @@ function upload_archive_internal {
 function upload_archive {
 	[ "" == "$1" ] && INFO "missing TAG" && exit 1
 	local TMP=$(mktemp /tmp/XXXXXX)
+	[ "" != "$2" ] && upload_archive_internal $@ && exit $?
 
 	while read LINE; do
 		echo "${LINE}" >> ${TMP}
@@ -95,7 +96,7 @@ function upload_archive {
 	done < /dev/stdin
 	
 	[ "0" == "$(cat ${TMP} | wc -l)" ] && [ "" == "$2" ] && INFO "missing filelist" && exit 1
-	[ "" == "$2" ] && upload_archive_internal $1 ${TMP} || upload_archive_internal $@
+	upload_archive_internal $1 ${TMP}
 
 	rm -f ${TMP}
 }
