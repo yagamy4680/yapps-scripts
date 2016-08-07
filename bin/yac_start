@@ -35,6 +35,9 @@ function yac_main {
 	local APP_RUNTIME_MODULE_PATH="${NODEJS_MODULE_DIR}/node_modules"
 	local APP_ENTRY="${APP_DIR}/index.js"
 	local APP_LOGFILE="${LOG_FILE}"
+	local APP_OPTS="-d"
+	[ -f "${APP_DIR}/config/${BOARD_PROFILE_ENV}.json" ] && APP_OPTS="${APP_OPTS} -c ${BOARD_PROFILE_ENV}"
+	INFO "APP_OPTS = ${APP_OPTS}"
 
 	APP=${APP} \
 		APP_RUNTIME_EXECUTABLE=${APP_RUNTIME_EXECUTABLE} \
@@ -42,6 +45,7 @@ function yac_main {
 		APP_RUNTIME_MODULE_PATH=${APP_RUNTIME_MODULE_PATH} \
 		APP_ENTRY=${APP_ENTRY} \
 		APP_LOGFILE=${APP_LOGFILE} \
+		APP_OPTS="${APP_OPTS}" \
 		RUN_NODE_APP_DAEMON $@
 
 	rm -f ${DST_FILE}
