@@ -10,16 +10,16 @@ function yac_main {
 		install_modules
 	}
 
-	APP=$1
-	APP_DIR="${PROFILE_CURRENT_DIR}/apps/${APP}"
+	local APP=$1
+	local APP_DIR="${PROFILE_CURRENT_DIR}/apps/${APP}"
 	shift
 
 	[ ! -d "${APP_DIR}" ] && ERR "cannot find $(RED ${APP}) in $(find ${PROFILE_CURRENT_DIR}/apps -maxdepth 1 -mindepth 1 -type d | xargs -I{} sh -c 'basename {}' | tr '\n' ' ')" && exit 1
 
 	mkdir -p ${PROFILE_LOG_APP_DIR}
-	TIME=$(date '+%Y_%m%d_%H%M')
-	DST_FILE="${PROFILE_CURRENT_DIR}/logs/${APP}.log"
-	LOG_FILE="${PROFILE_LOG_APP_DIR}/${APP}.${TIME}.log"
+	local TIME=$(date '+%Y_%m%d_%H%M')
+	local DST_FILE="${PROFILE_CURRENT_DIR}/logs/${APP}.log"
+	local LOG_FILE="${PROFILE_LOG_APP_DIR}/${APP}.${TIME}.log"
 
 	INFO "\tNODE_PATH = $(PURPLE ${NODEJS_MODULE_DIR}/node_modules)"
 	INFO "\t$(YELLOW ${RUNTIME_NODEJS_DIR}/bin/node) $(BLUE ${APP_DIR}/index.js) $(LIGHT_GREEN $@)"
@@ -27,11 +27,11 @@ function yac_main {
 	# Remove unix-sock for the app.
 	rm -f /tmp/yap/${APP}.system.sock
 
-	APP_RUNTIME_EXECUTABLE="${RUNTIME_NODEJS_DIR}/bin/node"
-	APP_RUNTIME_OPTS="--expose-gc"
-	APP_RUNTIME_MODULE_PATH="${NODEJS_MODULE_DIR}/node_modules"
-	APP_ENTRY="${APP_DIR}/index.js"
-	APP_LOGFILE="${LOG_FILE}"
+	local APP_RUNTIME_EXECUTABLE="${RUNTIME_NODEJS_DIR}/bin/node"
+	local APP_RUNTIME_OPTS="--expose-gc"
+	local APP_RUNTIME_MODULE_PATH="${NODEJS_MODULE_DIR}/node_modules"
+	local APP_ENTRY="${APP_DIR}/index.js"
+	local APP_LOGFILE="${LOG_FILE}"
 
 	APP=${APP} \
 		APP_RUNTIME_EXECUTABLE=${APP_RUNTIME_EXECUTABLE} \
