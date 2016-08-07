@@ -14,9 +14,13 @@ ACTION=$1; shift
 [ "" == "${ACTION}" ] && ACTION="help"
 
 # Full path of the action script to be executed
-#
 SCRIPT="$(dirname $0)/${PREFIX}_${ACTION}"
 
 # Execute that script if it's found
+[ -f "${SCRIPT}" ] && source ${SCRIPT} && yac_main $@ && exit $?
+
+
+# Find action script from profile's /opt/yapps-scripts/bin
 #
+SCRIPT="${PROFILE_CURRENT_DIR}/${YAC_BIN_DIR}/${PREFIX}_${ACTION}"
 [ -f "${SCRIPT}" ] && source ${SCRIPT} && yac_main $@ && exit $?
