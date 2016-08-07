@@ -17,9 +17,12 @@ function yac_main {
 	local PREFIX=$(basename $0)
 
 	echo -e "Usage: $(LIGHT_GREEN ${PREFIX}) <<command>> arg1 arg2 arg3 ..."
-	echo -e "Here are supported commands:"
-	echo -e "[system]"
-	list_commands ${PREFIX} $(dirname $0)
+	echo -e "Here are supported commands:\n"
 	echo -e "[profile]"
 	list_commands ${PREFIX} ${PROFILE_CURRENT_DIR}/${YAC_BIN_DIR}
+	echo ""
+
+	echo -e "[system]"
+	list_commands ${PREFIX} $(dirname $0)
+	echo ""
 }
