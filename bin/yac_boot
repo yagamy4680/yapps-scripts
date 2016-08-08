@@ -180,35 +180,58 @@ __EOF__
 function generate_id {
 	local BEAGLEBONE_ID=$(read_bbb_id)
 	local RPI_ID=$(read_rpi2_id)
-	local YAC_BSN_FILE="yac.bsn"
-	local YAC_ID_FILE="yac.id"
+	local YAC_BSN_FILE="/yac.bsn"
+	local YAC_ID_FILE="/yac.id"
 
 	if [ "" != ${BEAGLEBONE_ID} ]; then
 		# It's BeagleBone-Black series: BBB/BBG/BBG-Wirelss/IPCS
 		#
 		export BOARD_SERIAL_NUMBER=${BEAGLEBONE_ID}
 		export BOARD_UNIQUE_ID=${BEAGLEBONE_ID}
-		local EMMC_PARTITION="/dev/mmcblk1p2"
+		local EMMC_PARTITION1="/dev/mmcblk1p1"
+		local EMMC_PARTITION2="/dev/mmcblk1p2"
+		local EMMC_ROOT_PARTITION=""
 		local EMMC_DIRECTORY="/mnt/emmc"
 
-		if [ -b "${EMMC_PARTITION}" ]; then
-			# Booting from SD card. (so both /dev/mmcblk0 and /dev/mmcblk1 exist)
-			# 
-			mkdir -p ${EMMC_DIRECTORY} 2>&1 > /dev/null
-			mount -t ext4 ${EMMC_PARTITION} ${EMMC_DIRECTORY} 2>&1 > /dev/null
-			[ -f "${EMMC_DIRECTORY}/${YAC_BSN_FILE}" ] && BOARD_SERIAL_NUMBER=$(cat "${EMMC_DIRECTORY}/${YAC_BSN_FILE}")
-			[ -f "${EMMC_DIRECTORY}/${YAC_ID_FILE}" ]  && BOARD_UNIQUE_ID=$(cat "${EMMC_DIRECTORY}/${YAC_ID_FILE}")
+		if [ -b "${EMMC_PARTITION2}" ]; then
+			# Booting from SD card, and BBB/BBG eMMC uses kernel 3.8 with
+			# 2 partitions:
+			# 	- /dev/mmcblk1p1 (fat32 with boot-loader and MLB)
+			# 	- /dev/mmcblk1p2 (ext4 for rootfs)
+			#
+			EMMC_ROOT_PARTITION=${EMMC_PARTITION2}
+			INFO "BeagleBone boots from SD (eMMC has TWO partition)"
+		elif [ -b "${EMMC_PARTITION1}" ]; then
+			# Booting from SD card, and BBG eMMC uses kernel 4.4.9 with 1 partition:
+			# 	- /dev/mmcblk1p1 (ext4 for rootfs, MLB is stored in MBR sector)
+			#
+			EMMC_ROOT_PARTITION=${EMMC_PARTITION1}
+			INFO "BeagleBone boots from SD (eMMC has ONE partition)"
 		else
-			# Booting from eMMC (so only /dev/mmcblk0 exists)
-			# 
-			[ -f "/${YAC_ID_FILE}" ] && BOARD_UNIQUE_ID=$(cat "/${YAC_ID_FILE}")
+			# Booting from eMMC (so there is no /dev/mmcblk1)
+			#
+			INFO "BeagleBone boots from eMMC"
+		fi
+		if [ "" != "${EMMC_ROOT_PARTITION}" ]; then
+			# Booting from SD card
+			#
+			mkdir -p ${EMMC_DIRECTORY} 2>&1 > /dev/null
+			mount -t ext4 ${EMMC_ROOT_PARTITION} ${EMMC_DIRECTORY} 2>&1 > /dev/null
+			[ -f "${EMMC_DIRECTORY}${YAC_BSN_FILE}" ] && BOARD_SERIAL_NUMBER=$(cat "${EMMC_DIRECTORY}${YAC_BSN_FILE}")
+			[ -f "${EMMC_DIRECTORY}${YAC_ID_FILE}" ]  && BOARD_UNIQUE_ID=$(cat "${EMMC_DIRECTORY}${YAC_ID_FILE}")
+			[ -f "${EMMC_DIRECTORY}/boot/uEnv.txt" ] && INFO "eMMC kernel: $(YELLOW $(cat ${EMMC_DIRECTORY}/boot/uEnv.txt  | grep "^uname_r" | awk -F'=' '{print $2}'))"
+		else
+			# Booting from eMMC
+			#
+			[ -f "${YAC_ID_FILE}" ] && BOARD_UNIQUE_ID=$(cat "${YAC_ID_FILE}")
+
 		fi
 	elif [ "" != ${RPI_ID} ]; then
 		# It's RPi2/3, boots from SD card
 		#
 		export BOARD_SERIAL_NUMBER=${RPI_ID}
 		export BOARD_UNIQUE_ID=${RPI_ID}
-		[ -f "/${YAC_ID_FILE}" ] && BOARD_UNIQUE_ID=$(cat "/${YAC_ID_FILE}")
+		[ -f "${YAC_ID_FILE}" ] && BOARD_UNIQUE_ID=$(cat "${YAC_ID_FILE}")
 	else
 		export BOARD_SERIAL_NUMBER=$(generate_unique_id "devboard")
 		export BOARD_UNIQUE_ID=${BOARD_SERIAL_NUMBER}
