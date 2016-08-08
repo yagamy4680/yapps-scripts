@@ -34,6 +34,40 @@ function mount_directories {
 	[ -f "${HOOK}" ] && source ${HOOK} && INFO "source $(LIGHT_GREEN ${HOOK})"
 }
 
+function output {
+	echo $@
+}
+
+function check_connectivity {
+	[ "" == "${WIRELESS_IF}" ] && local WIRELESS_IF=$1
+	[ "" == "${WIRELESS_IF}" ] && output "91" && return
+
+	# Check the connectivity of data-link layer in OSI (to wireless access-point).
+	#
+	local AP_MAC=$(iwconfig ${WIRELESS_IF} | head -n2 | tail -n1 | tr ' ' '\n' | grep -v '^$' | tail -n1)
+	[ "Not-Associated" == "${AP_MAC}" ] && output "92" && return
+	[ "" == "${AP_MAC}" ] && output "93" && return
+
+	# Check the LAN connectivity of network/ip layer in OSI (ping to default gateway).
+	#
+	local GATEWAY=$(route -n | grep " UG " | awk '{print $2}')
+	[ "" == "${GATEWAY}" ] && output "94" && return
+	ping -c 1 ${GATEWAY} > /dev/null 2>&1
+	[ "0" != "$?" ] && output "95" && return
+
+	# Check the WAN connectivity of network/ip layer in OSI (ping to 8.8.8.8).
+	#
+	ping -c 1 -W 5 8.8.8.8 > /dev/null 2>&1
+	[ "0" != "$?" ] && output "96" && return
+
+	# Check the health of transport layer in OSI (dns lookup)
+	#
+	echo -e 'server 8.8.8.8\nset timeout=2\nwww.google.com' | nslookup > /dev/null 2>&1
+	[ "0" != "$?" ] && output "97" && return
+
+	output "99"
+}
+
 function bootup_wireless_adapter {
 	# Search the WLAN device, might be wlan0, or wlan1, ...
 	#
@@ -86,6 +120,7 @@ function find_ap_and_connect {
 	SETTINGS=($(cat ${TMP4}))
 	unset IFS
 	export WIRELESS_CONNECTED="false"
+	export WIRELESS_CONNECTIVITY="0"
 	rm -f ${TMP4}
 	source ${YAC_LIB_DIR}/wireless_connect
 
@@ -114,6 +149,8 @@ function find_ap_and_connect {
 			rm -f ${PROFILE_CURRENT_LOG_DIR}/wireless.log
 			ln -s ${WIFI_LOGFILE} ${PROFILE_CURRENT_LOG_DIR}/wireless.log
 			INFO "log: $(BLUE ${PROFILE_CURRENT_LOG_DIR}/wireless.log) -> ${WIFI_LOGFILE}"
+			export WIRELESS_CONNECTIVITY=$(check_connectivity)
+			INFO "wireless-connectivity = ${WIRELESS_CONNECTIVITY}"
 			break
 		fi
 	done
@@ -194,6 +231,20 @@ function update_system_id {
 	sed -i "s/^127\.0\.1\.1.*/127\.0\.1\.1\t$(hostname)\ $(hostname).localdomain/g" /etc/hosts
 }
 
+function notify_cloud {
+	local TMP=$(mktemp /tmp/XXXXXX)
+	jo -p ttt=$(jo $(cat /tmp/ttt_system | tr '\t' '=' | tr '\n' ' ')) > ${TMP}
+	cat ${TMP}
+	RUN_CMD_STREAMING \
+		http \
+			--verbose \
+			--ignore-stdin \
+			https://registry.t2t.io/api/v1/update-node/${BOARD_PROFILE}/${BOARD_UNIQUE_ID} \
+			metadata:=@${TMP}
+	INFO "successfully https://registry.t2t.io/api/v1/update-node/${BOARD_PROFILE}/${BOARD_UNIQUE_ID}"
+	rm -f ${TMP}
+}
+
 function generate_sys_info_and_notify_cloud {
 	export BOARD_NAME="$(uname -n)"
 	export MAC_ADDR=$(ifconfig ${WIRELESS_IF} | grep HWaddr | grep ${WIRELESS_IF} | sed 's/.*HWaddr //g')
@@ -201,17 +252,11 @@ function generate_sys_info_and_notify_cloud {
 	generate_ttt_system
 
 	if [ "true" == "${WIRELESS_CONNECTED}" ]; then
-		local TMP=$(mktemp /tmp/XXXXXX)
-		jo -p ttt=$(jo $(cat /tmp/ttt_system | tr '\t' '=' | tr '\n' ' ')) > ${TMP}
-		cat ${TMP}
-		RUN_CMD_STREAMING \
-			http \
-				--verbose \
-				--ignore-stdin \
-				https://registry.t2t.io/api/v1/update-node/${BOARD_PROFILE}/${BOARD_UNIQUE_ID} \
-				metadata:=@${TMP}
-		INFO "successfully https://registry.t2t.io/api/v1/update-node/${BOARD_PROFILE}/${BOARD_UNIQUE_ID}"
-		rm -f ${TMP}
+		if [ "99" == "${WIRELESS_CONNECTIVITY}" ]; then
+			notify_cloud &
+		else
+			ERR "connect to access-point but not connect to Internet"
+		fi
 	else
 		ERR "failed to connect to any access-point"
 	fi
@@ -248,11 +293,19 @@ function yac_main {
 	notify_event "bootup_wireless_adapter"
 	bootup_wireless_adapter
 	find_ap_and_connect
-	notify_event "wireless" "${WIRELESS_CONNECTED}"
-	[ "true" != "${WIRELESS_CONNECTED}" ] && sleep 4
+
+	notify_event "wireless" "${WIRELESS_CONNECTED}" "${WIRELESS_CONNECTIVITY}"
+	#
+	# Make sure the wireless disconnection emoji animation are all played.
+	#
+	[ "true" != "${WIRELESS_CONNECTED}" ] && sleep 4 || {
+		[ "99" != "${WIRELESS_CONNECTIVITY}" ] && sleep 4
+	}
+
 	INFO "generate_sys_info_and_notify_cloud"
 	notify_event "generate_sys_info_and_notify_cloud"
 	generate_sys_info_and_notify_cloud
+
 	INFO "run_init_scripts"
 	run_init_scripts
 	notify_event "end"
