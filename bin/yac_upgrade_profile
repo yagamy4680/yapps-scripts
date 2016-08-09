@@ -45,6 +45,8 @@ function download_and_extract {
 
 	local ARCHIVE_NAME="${ARCHIVE%%.*}"
 	local PROFILE_ARCHIVE_URL="${RELEASE_URL}/yapps/profiles/${BOARD_PROFILE}/0.${PROFILE_ENV}/${ARCHIVE}"
+	local BOARD_PROFILE_VERSION=$(mount | grep "/${BOARD_PROFILE}/current" | awk '{print $1}' | awk -F'/' '{print $6}')
+	[ "${ARCHIVE_NAME}" == "${BOARD_PROFILE_VERSION}" ] && ERR "the target profile archive equals to currently-running version: $(YELLOW ${ARCHIVE_NAME})" && exit 2
 
 	INFO "downloading latest version $(LIGHT_GREEN ${PROFILE_ARCHIVE_URL})"
 	ARCHIVE_FILE="/tmp/${BOARD_PROFILE}-$(basename ${PROFILE_ARCHIVE_URL})"
@@ -59,7 +61,7 @@ function download_and_extract {
 
 	if [ "0" != "$?" ]; then
 		ERR "failed to download ${PROFILE_ARCHIVE_URL}"
-		exit 1
+		exit 3
 	fi
 	INFO "successfully download $(basename ${ARCHIVE_FILE})"
 	TARGET_DIR="/mnt/app/profiles/${BOARD_PROFILE}/${ARCHIVE_NAME}"
@@ -99,11 +101,19 @@ function yac_main {
 	local PROFILE_ENV="development"
 	[ "" == "${ENV}" ] || PROFILE_ENV=${ENV}
 
+	case "${PROFILE_ENV}" in
+		development|testing|production)
+			;;
+		*)
+			ERR "unexpected environment: ${ENV}"
+			exit 1
+			;;
+	esac
+
 	export BOARD_UNIQUE_ID=$(cat /tmp/ttt_system | grep "^id" | awk '{print $2}')
 	export BOARD_SERIAL_NUMBER=$(cat /tmp/ttt_system | grep "^sn" | awk '{print $2}')
 	[ "" == "${BOARD_UNIQUE_ID}" ] && BOARD_UNIQUE_ID="unknown"
 	[ "" == "${BOARD_SERIAL_NUMBER}" ] && BOARD_SERIAL_NUMBER="unknown"
 
 	download_and_extract ${PROFILE_ENV} ${PROFILE_VERSION}
-
 }
