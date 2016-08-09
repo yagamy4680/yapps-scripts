@@ -188,6 +188,9 @@ function generate_id {
 		#
 		export BOARD_SERIAL_NUMBER=${BEAGLEBONE_ID}
 		export BOARD_UNIQUE_ID=${BEAGLEBONE_ID}
+
+		[ "" == "$(echo ${BOARD_SERIAL_NUMBER} | grep "^bb.-")" ] || BOARD_SERIAL_NUMBER=$(echo ${BOARD_SERIAL_NUMBER} | sed 's/^bb.\-//g')
+
 		local EMMC_PARTITION1="/dev/mmcblk1p1"
 		local EMMC_PARTITION2="/dev/mmcblk1p2"
 		local EMMC_ROOT_PARTITION=""
