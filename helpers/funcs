@@ -92,8 +92,8 @@ function download_nodejs_modules {
 	INFO "installing $(PURPLE ${MODULES}) for $(LIGHT_GREEN ${CURRENT_OS_NAME})/$(LIGHT_GREEN ${CURRENT_OS_ARCH}) ..."
 
 	INFO "checking module archives cached at cloud: ${SERVER_URL}${SERVER_DIR}/$(basename ${ARCHIVE_LIST_FILE})"
-	http --check-status --ignore-stdin ${SERVER_URL}${SERVER_DIR}/$(basename ${ARCHIVE_LIST_FILE}) > ${ARCHIVE_LIST_FILE} 2>&1
-	[ "0" != "$?" ] && INFO "failed to download archives.txt from ${SERVER_URL}${SERVER_DIR}/$(basename ${ARCHIVE_LIST_FILE})"
+	http --check-status --ignore-stdin ${SERVER_URL}${SERVER_DIR}/$(basename ${ARCHIVE_LIST_FILE}) > ${ARCHIVE_LIST_FILE}
+	[ "0" != "$?" ] && INFO "failed to download archives.txt from ${SERVER_URL}${SERVER_DIR}/$(basename ${ARCHIVE_LIST_FILE})" && return 1
 
 	local UUID=$(cat ${ARCHIVE_LIST_FILE} | grep ${MODULES_X} | awk -F'\t' '{print $1}' | tail -n1)
 	local UUID_GZIP_FILE="${UUID}.tar.gz"
@@ -102,7 +102,7 @@ function download_nodejs_modules {
 	[ "" == "${UUID}" ] && INFO "no matching modules" && return 1
 
 	INFO "downloading modules from cloud: $(LIGHT_GREEN ${UUID_GZIP_FILE})"
-	http --check-status --ignore-stdin --output ${GZIPPED_FILE} "${SERVER_URL}${SERVER_DIR}/${UUID_GZIP_FILE}"
+	http --check-status --ignore-stdin "${SERVER_URL}${SERVER_DIR}/${UUID_GZIP_FILE}" > ${GZIPPED_FILE}
 	[ "0" != "$?" ] && INFO "failed to download ${UUID_GZIP_FILE} from ${SERVER_URL}${SERVER_DIR}/${UUID_GZIP_FILE}" && return 1
 
 	INFO "decompressing the downloaded module gzip file: ${GZIPPED_FILE}"

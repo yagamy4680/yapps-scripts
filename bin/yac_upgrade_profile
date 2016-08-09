@@ -54,10 +54,10 @@ function download_and_extract {
 		--check-status \
 		--ignore-stdin \
 		-a ${RELEASE_USER}:${RELEASE_PASS} \
-		--output ${ARCHIVE_FILE} \
 		${PROFILE_ARCHIVE_URL} \
 		board_unique_id==${BOARD_UNIQUE_ID} \
-		board_serial_number==${BOARD_SERIAL_NUMBER}
+		board_serial_number==${BOARD_SERIAL_NUMBER} \
+		> ${ARCHIVE_FILE}
 
 	if [ "0" != "$?" ]; then
 		ERR "failed to download ${PROFILE_ARCHIVE_URL}"
