@@ -68,6 +68,23 @@ function check_connectivity {
 	output "99"
 }
 
+function wait_internet_connection {
+	local WAIT_TIMEOUT=7
+	local TIMES=0
+	local CONNECTIVITY="$(check_connectivity)"
+
+	while [ "99" != "${CONNECTIVITY}" ]; do
+		TIMES=$(($TIMES+1))
+		[ "${TIMES}" -gt ${WAIT_TIMEOUT} ] && INFO "connectivity => ${CONNECTIVITY} (not good but timeout)" && break
+		INFO "connectivity => ${CONNECTIVITY}, not good, wait for 1 second and retry"
+		sleep 2
+		notify_event "wait_internet" ${TIMES}
+		CONNECTIVITY="$(check_connectivity)"
+	done
+
+	export WIRELESS_CONNECTIVITY=${CONNECTIVITY}
+}
+
 function bootup_wireless_adapter {
 	# Search the WLAN device, might be wlan0, or wlan1, ...
 	#
@@ -149,8 +166,7 @@ function find_ap_and_connect {
 			rm -f ${PROFILE_CURRENT_LOG_DIR}/wireless.log
 			ln -s ${WIFI_LOGFILE} ${PROFILE_CURRENT_LOG_DIR}/wireless.log
 			INFO "log: $(BLUE ${PROFILE_CURRENT_LOG_DIR}/wireless.log) -> ${WIFI_LOGFILE}"
-			export WIRELESS_CONNECTIVITY=$(check_connectivity)
-			INFO "wireless-connectivity = ${WIRELESS_CONNECTIVITY}"
+			wait_internet_connection
 			break
 		fi
 	done
@@ -305,11 +321,24 @@ function generate_sys_info_and_notify_cloud {
 
 function synchronize_time {
 	local SERVER=$(call_func "yac_hook" "get_ntp_server")
-	INFO "using $(LIGHT_GREEN ${SERVER}) for time synchronization"
-	[ "" == "${SERVER}" ] || {
-		generate_ntp_script ${SERVER} /tmp/ntp
-		/tmp/ntp &
-	}
+	if [ "" == "${SERVER}" ]; then
+		INFO "no ntp server from yapps profile, ignore NTP time synchronization"
+		echo "-3" > ${BOOT_NTP_SYNC}
+	else
+		INFO "using $(LIGHT_GREEN ${SERVER}) for time synchronization"
+		if [ "true" == "${WIRELESS_CONNECTED}" ]; then
+			if [ "99" == "${WIRELESS_CONNECTIVITY}" ]; then
+				generate_ntp_script ${SERVER} /tmp/ntp
+				/tmp/ntp &
+			else
+				INFO "but connectivity (${WIRELESS_CONNECTIVITY}) is lower than 99, ignore NTP time synchronization"
+				echo "-4" > ${BOOT_NTP_SYNC}
+			fi
+		else
+			INFO "but wireless disconnected, ignore NTP time synchronization"
+			echo "-5" > ${BOOT_NTP_SYNC}
+		fi
+	fi
 }
 
 
