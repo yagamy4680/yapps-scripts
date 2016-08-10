@@ -30,12 +30,12 @@ Environment
     ARCHITECTURE            = $(YELLOW $(uname -m))
     DISTRIBUTION            = $(YELLOW $(lsb_release -a 2>/dev/null | grep "Description" | awk -F':' '{print $2}' | sed 's/\t//g'))
     --------------------------------------------------------
-    ARCHIVE_URL             = $(YELLOW ${ARCHIVE_URL})
-    RELEASE_URL             = $(YELLOW ${RELEASE_URL})
-    RELEASE_USER            = $(YELLOW ${RELEASE_USER})
-    FILE_FC                 = $(YELLOW ${FILE_FC})
-    FILE_SITE               = $(YELLOW ${FILE_SITE})
-    FILE_USER               = $(YELLOW ${FILE_USER})
+    CLOUD_ARCHIVE_URL       = $(YELLOW ${CLOUD_ARCHIVE_URL})
+    CLOUD_RELEASE_URL       = $(YELLOW ${CLOUD_RELEASE_URL})
+    CLOUD_RELEASE_USER      = $(YELLOW ${CLOUD_RELEASE_USER})
+    CLOUD_FILE_FC           = $(YELLOW ${CLOUD_FILE_FC})
+    CLOUD_FILE_SITE         = $(YELLOW ${CLOUD_FILE_SITE})
+    CLOUD_FILE_USER         = $(YELLOW ${CLOUD_FILE_USER})
 
 /tmp/ttt_system
 $(cat /tmp/ttt_system | awk '{printf "    %s\n", $0}')
