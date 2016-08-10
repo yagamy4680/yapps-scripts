@@ -7,10 +7,10 @@ function get_profile_archive_list {
 	local OUTPUT=$1
 	local TMP=$(mktemp /tmp/XXXXXX)
 	http \
-		-a ${RELEASE_USER}:${RELEASE_PASS} \
+		-a ${CLOUD_RELEASE_USER}:${CLOUD_RELEASE_PASS} \
 		--check-status \
 		--ignore-stdin \
-		${RELEASE_URL}/yapps/profiles/${BOARD_PROFILE}/0.${PROFILE_ENV}/ \
+		${CLOUD_RELEASE_URL}/yapps/profiles/${BOARD_PROFILE}/0.${PROFILE_ENV}/ \
 		board_unique_id==${BOARD_UNIQUE_ID} \
 		board_serial_number==${BOARD_SERIAL_NUMBER} \
 		> ${TMP} 2>&1
@@ -44,7 +44,7 @@ function download_and_extract {
 	fi
 
 	local ARCHIVE_NAME="${ARCHIVE%%.*}"
-	local PROFILE_ARCHIVE_URL="${RELEASE_URL}/yapps/profiles/${BOARD_PROFILE}/0.${PROFILE_ENV}/${ARCHIVE}"
+	local PROFILE_ARCHIVE_URL="${CLOUD_RELEASE_URL}/yapps/profiles/${BOARD_PROFILE}/0.${PROFILE_ENV}/${ARCHIVE}"
 	local BOARD_PROFILE_VERSION=$(mount | grep "/${BOARD_PROFILE}/current" | awk '{print $1}' | awk -F'/' '{print $6}')
 	[ "${ARCHIVE_NAME}" == "${BOARD_PROFILE_VERSION}" ] && ERR "the target profile archive equals to currently-running version: $(YELLOW ${ARCHIVE_NAME})" && exit 2
 
@@ -53,7 +53,7 @@ function download_and_extract {
 	http \
 		--check-status \
 		--ignore-stdin \
-		-a ${RELEASE_USER}:${RELEASE_PASS} \
+		-a ${CLOUD_RELEASE_USER}:${CLOUD_RELEASE_PASS} \
 		${PROFILE_ARCHIVE_URL} \
 		board_unique_id==${BOARD_UNIQUE_ID} \
 		board_serial_number==${BOARD_SERIAL_NUMBER} \
