@@ -32,16 +32,19 @@ function init-yac-variables {
 
 	[ "" == "${NODEJS_VERSION}" ] && export NODEJS_VERSION=$(cat ${YS_DIR}/defaults.conf | grep "^nodejs" | awk -F'\t' '{print $2}')
 	[ "" == "${PYTHON_VERSION}" ] && export PYTHON_VERSION=$(cat ${YS_DIR}/defaults.conf | grep "^python" | awk -F'\t' '{print $2}')
-	# [ "" == "${ARCHIVE_URL}" ] && export ARCHIVE_URL=$(cat ${YS_DIR}/cloud.conf | grep "^ARCHIVE_URL" | awk -F'\t' '{print $2}')
-	# [ "" == "${RELEASE_URL}" ] && export RELEASE_URL=$(cat ${YS_DIR}/cloud.conf | grep "^RELEASE_URL" | awk -F'\t' '{print $2}')
-	# [ "" == "${RELEASE_USER}" ] && export RELEASE_USER=$(cat ${YS_DIR}/cloud.conf | grep "^RELEASE_USER" | awk -F'\t' '{print $2}')
-	# [ "" == "${RELEASE_PASS}" ] && export RELEASE_PASS=$(cat ${YS_DIR}/cloud.conf | grep "^RELEASE_PASS" | awk -F'\t' '{print $2}')
-	# [ "" == "${FILE_FC}" ] && export FILE_FC=$(cat ${YS_DIR}/cloud.conf | grep "^FILE_FC" | awk -F'\t' '{print $2}')
-	# [ "" == "${FILE_SITE}" ] && export FILE_SITE=$(cat ${YS_DIR}/cloud.conf | grep "^FILE_SITE" | awk -F'\t' '{print $2}')
-	# [ "" == "${FILE_USER}" ] && export FILE_USER=$(cat ${YS_DIR}/cloud.conf | grep "^FILE_USER" | awk -F'\t' '{print $2}')
-	# [ "" == "${FILE_PSWD}" ] && export FILE_PSWD=$(cat ${YS_DIR}/cloud.conf | grep "^FILE_PSWD" | awk -F'\t' '{print $2}')
 	local CLOUD_BASHRC="/tmp/cloud.bashrc"
 	[ -f "${CLOUD_BASHRC}" ] || {
+		#
+		# Initialize following environment variables from cloud.bashrc:
+		#   - ARCHIVE_URL
+		#   - RELEASE_URL
+		#   - RELEASE_USER
+		#   - RELEASE_PASS
+		#   - FILE_FC
+		#   - FILE_SITE
+		#   - FILE_USER
+		#   - FILE_PSWD
+		#
 		mkdir -p $(dirname ${CLOUD_BASHRC})
 		cat ${YS_DIR}/cloud.conf | awk '{printf "export CLOUD_%s=%s\n", $1, $2}' > ${CLOUD_BASHRC}
 	}
