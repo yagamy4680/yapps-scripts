@@ -10,7 +10,7 @@ function upload_rootfs_file {
 	local TARGET_FILENAME=$(basename ${TARGET_FILE})
 	local TARGET_DIR=$(pwd)
 	local PARENT_DIR="${FC_PARENT_DIR}/rootfs"
-	[ "" == "${FILE_USER}" ] && local AUTH_OPTS="" || local AUTH_OPTS="-a ${FILE_USER}:${FILE_PSWD}"
+	[ "" == "${CLOUD_FILE_USER}" ] && local AUTH_OPTS="" || local AUTH_OPTS="-a ${CLOUD_FILE_USER}:${CLOUD_FILE_PSWD}"
 
 	INFO "uploading $(LIGHT_GREEN ${TARGET_DIR}/${TARGET_FILENAME})"
 
@@ -20,14 +20,14 @@ function upload_rootfs_file {
 			--check-status \
 			--ignore-stdin \
 			${AUTH_OPTS} \
-			${FILE_FC}/api/v1/c/upload \
-			site=${FILE_SITE} \
+			${CLOUD_FILE_FC}/api/v1/c/upload \
+			site=${CLOUD_FILE_SITE} \
 			content@${TARGET_DIR}/${TARGET_FILENAME} \
 			directory=${PARENT_DIR}${TARGET_DIR} \
 			overwrite:=true
 
 	[ "0" != "$?" ] && ERR "failed to upload" && exit 1
-	INFO "saved to https://${FILE_SITE}/${PARENT_DIR}${TARGET_DIR}/${TARGET_FILENAME}"
+	INFO "saved to https://${CLOUD_FILE_SITE}/${PARENT_DIR}${TARGET_DIR}/${TARGET_FILENAME}"
 }
 
 function upload_archive_internal {
@@ -66,7 +66,7 @@ function upload_archive_internal {
 	tar czf ${ARCHIVE} .
 
 	local PARENT_DIR="${FC_PARENT_DIR}/${TAG}"
-	[ "" == "${FILE_USER}" ] && local AUTH_OPTS="" || local AUTH_OPTS="-a ${FILE_USER}:${FILE_PSWD}"
+	[ "" == "${CLOUD_FILE_USER}" ] && local AUTH_OPTS="" || local AUTH_OPTS="-a ${CLOUD_FILE_USER}:${CLOUD_FILE_PSWD}"
 
 	INFO "uploading $(LIGHT_GREEN ${ARCHIVE})"
 	RUN_CMD \
@@ -75,13 +75,13 @@ function upload_archive_internal {
 			--check-status \
 			--ignore-stdin \
 			${AUTH_OPTS} \
-			${FILE_FC}/api/v1/c/upload \
-			site=${FILE_SITE} \
+			${CLOUD_FILE_FC}/api/v1/c/upload \
+			site=${CLOUD_FILE_SITE} \
 			content@${ARCHIVE} \
 			directory=${PARENT_DIR} \
 			overwrite:=true
 
-	[ "0" != "$?" ] && ERR "failed to upload" || INFO "successfully uploaded: https://${FILE_SITE}/${PARENT_DIR}/$(basename ${ARCHIVE})"
+	[ "0" != "$?" ] && ERR "failed to upload" || INFO "successfully uploaded: https://${CLOUD_FILE_SITE}/${PARENT_DIR}/$(basename ${ARCHIVE})"
 	rm -rf ${ARCHIVE_DIR}
 }
 
