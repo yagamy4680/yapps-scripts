@@ -85,7 +85,7 @@ function download_and_extract {
 		${OS_ARCH} \
 		${MODULE_DIR} \
 		${MODULE_CONF} \
-		${ARCHIVE_URL} ; then
+		${CLOUD_ARCHIVE_URL} ; then
 		INFO "successfully install nodejs module"
 	else
 		local MODULES=$(cat ${MODULE_CONF} | tr '\t' '@' | tr '\n' ' ')

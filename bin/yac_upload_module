@@ -5,7 +5,7 @@
 function upload_nodejs_module {
 	[ "" == "${UUID}" ] && UUID=$(dbus-uuidgen)
 	[ "" == "${UUID}" ] && UUID="$(cat /proc/sys/kernel/random/uuid)"
-	ARCHIVE_SITE=$(basename ${ARCHIVE_URL})
+	ARCHIVE_SITE=$(basename ${CLOUD_ARCHIVE_URL})
 	ARCHIVE="/tmp/${UUID}.tar.gz"
 	cd ${NODEJS_MODULE_DIR}
 	UPLOAD_DIR="/embedded-linux/nodejs-modules/${OS_NAME}/${OS_ARCH}/${NODEJS_VERSION}"
@@ -24,7 +24,7 @@ function upload_nodejs_module {
 	rm -f ${ARCHIVE}
 
 	ARCHIVE_LIST="/tmp/archives.txt"
-	http --check-status --ignore-stdin ${ARCHIVE_URL}${UPLOAD_DIR}/$(basename ${ARCHIVE_LIST}) > ${ARCHIVE_LIST} 2>&1
+	http --check-status --ignore-stdin ${CLOUD_ARCHIVE_URL}${UPLOAD_DIR}/$(basename ${ARCHIVE_LIST}) > ${ARCHIVE_LIST} 2>&1
 	[ "0" != "$?" ] && rm -f ${ARCHIVE_LIST}
 
 	MODULES="$(cat ${PROFILE_CURRENT_DIR}/apps/packages.conf | tr '\t' '@' | tr '\n' ' ' | sed 's/\ $//g' | tr ' ' ':')"
@@ -64,7 +64,6 @@ __EOF__
 
 function yac_main {
 	[ "" == "${UPLOAD_URL_ENTRY}" ] && export UPLOAD_URL_ENTRY="https://files.t2t.io"
-	[ "" == "${ARCHIVE_URL}" ] && ARCHIVE_SITE="archives.t2t.io"
 	export UPLOAD_USER=$1
 	export UPLOAD_PASS=$2
 

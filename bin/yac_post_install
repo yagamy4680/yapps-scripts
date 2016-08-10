@@ -13,13 +13,13 @@ function install_nodejs_modules {
 	ARCHIVE_DIR="/embedded-linux/nodejs-modules/${OS_NAME}/${OS_ARCH}/${NODEJS_VERSION}"
 	ARCHIVE_LIST="/tmp/archives.txt"
 	INFO "checking module archives cached at cloud ..."
-	http --check-status --ignore-stdin ${ARCHIVE_URL}${ARCHIVE_DIR}/$(basename ${ARCHIVE_LIST}) > ${ARCHIVE_LIST} 2>&1
+	http --check-status --ignore-stdin ${CLOUD_ARCHIVE_URL}${ARCHIVE_DIR}/$(basename ${ARCHIVE_LIST}) > ${ARCHIVE_LIST} 2>&1
 
 	if [ "0" == "$?" ]; then
 		UUID=$(cat ${ARCHIVE_LIST} | grep ${MODULES_X} | awk -F'\t' '{print $1}' | tail -n1)
 		if [ "" != "${UUID}" ]; then
 			INFO "downloading modules from cloud: $(YELLOW ${UUID}.tar.gz)"
-			http --check-status --ignore-stdin --output /tmp/${UUID}.tar.gz ${ARCHIVE_URL}${ARCHIVE_DIR}/${UUID}.tar.gz
+			http --check-status --ignore-stdin --output /tmp/${UUID}.tar.gz ${CLOUD_ARCHIVE_URL}${ARCHIVE_DIR}/${UUID}.tar.gz
 			if [ "0" == "$?" ]; then
 				RUN_CMD tar xf /tmp/${UUID}.tar.gz -C ${NODEJS_MODULE_DIR}
 				[ "0" == "$?" ] && INFO "use downloaded module archive" && return
