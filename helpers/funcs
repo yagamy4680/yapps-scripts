@@ -30,6 +30,8 @@ function init-yac-variables {
 	export PROFILE_CURRENT_DIR="${PROFILE_ROOT}/current"
 	export PROFILE_CURRENT_LOG_DIR="${PROFILE_CURRENT_DIR}/logs"
 
+	export BOOT_NTP_SYNC="/tmp/boot_ntp_sync"
+
 	[ "" == "${NODEJS_VERSION}" ] && export NODEJS_VERSION=$(cat ${YS_DIR}/defaults.conf | grep "^nodejs" | awk -F'\t' '{print $2}')
 	[ "" == "${PYTHON_VERSION}" ] && export PYTHON_VERSION=$(cat ${YS_DIR}/defaults.conf | grep "^python" | awk -F'\t' '{print $2}')
 	local CLOUD_BASHRC="/tmp/cloud.bashrc"

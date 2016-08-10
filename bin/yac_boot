@@ -173,6 +173,20 @@ wireless_ssid	${SSID}
 __EOF__
 }
 
+
+function generate_ntp_script {
+[ "" == "$1" ] && return
+[ "" == "$2" ] && return
+cat << __EOF__ > $2
+#!/bin/bash
+ntpdate -b $1
+echo "\$?" > ${BOOT_NTP_SYNC}
+date > /tmp/aa
+__EOF__
+chmod +x $2
+}
+
+
 # Generate 2 variables, and export them:
 #    - BOARD_SERIAL_NUMBER    (e.g. `bbg-BBG115081198`)
 #    - BOARD_UNIQUE_ID        (e.g. `F99900011`)
@@ -288,6 +302,17 @@ function generate_sys_info_and_notify_cloud {
 	fi
 }
 
+
+function synchronize_time {
+	local SERVER=$(call_func "yac_hook" "get_ntp_server")
+	INFO "using $(LIGHT_GREEN ${SERVER}) for time synchronization"
+	[ "" == "${SERVER}" ] || {
+		generate_ntp_script ${SERVER} /tmp/ntp
+		/tmp/ntp &
+	}
+}
+
+
 function run_init_scripts {
 	SCRIPTS=($(find ${PROFILE_CURRENT_DIR}/etc/init.d/ -type f | sort))
 	for s in "${SCRIPTS[@]}"; do
@@ -331,6 +356,10 @@ function yac_main {
 	INFO "generate_sys_info_and_notify_cloud"
 	notify_event "generate_sys_info_and_notify_cloud"
 	generate_sys_info_and_notify_cloud
+
+	INFO "synchronize_time"
+	notify_event "synchronize_time"
+	synchronize_time
 
 	INFO "run_init_scripts"
 	run_init_scripts
