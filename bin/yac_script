@@ -1,0 +1,16 @@
+#!/bin/bash
+#
+##DOC:	load script from stdin, source it, and run its yac_script_main() function.
+
+function yac_main {
+	local TMP=$(mktemp /tmp/XXXXXX)
+	
+	echo "#!/bin/bash" > ${TMP}
+	while read LINE; do
+		echo "${LINE}" >> ${TMP}
+	done
+
+	source ${TMP}
+	call_func "yac_script_main" $@
+	rm -f ${TMP}
+}
