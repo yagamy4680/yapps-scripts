@@ -73,6 +73,7 @@ class Service:
         self.counter = 0
         self.running = False
         self.index = find_index(directory)
+        self.max_files = 60
 
 
     def debug(self, message):
@@ -98,10 +99,24 @@ class Service:
             filepath = os.path.join(directory, name)
             with open(filepath, "w") as f:
                 f.write("\t".join(tokens))
-            self.debug("%s" % (filepath))
+            self.debug("create %s" % (filepath))
             subprocess.check_output("sync")
         except Exception as e:
             print(traceback.format_exc())
+
+
+    def delete_old_files(self, directory):
+        xs = [ x for x in os.listdir(directory) ]
+        xs = [ x for x in xs if x[-4:] == ".txt" ]
+        xs.sort()
+        if len(xs) > self.max_files:
+            filepath = os.path.join(directory, xs[0])
+            try:
+                self.debug("delete %s" % (filepath))
+                os.remove(filepath)
+            except Exception as e:
+                print(traceback.format_exc())
+
 
 
     def create_directory(self, directory):
@@ -177,6 +192,7 @@ class Service:
             self.counter = 0 if self.counter >= self.interval else self.counter
             if self.counter == 0:
                 self.dump_time(directory)
+                self.delete_old_files(directory)
 
 
 
