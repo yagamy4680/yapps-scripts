@@ -348,7 +348,7 @@ function run_time_daemon_and_restore {
 	# timestamp (in seconds) into disk.
 	#
 	INFO "starting timestamp logging daemon"
-	nohup ${TIMESTAMP_LOGGING} -v -i 5 -d ${TIMESTAMP_DIR} daemon >> ${TIMESTAMP_LOG} 2>&1&
+	nohup ${TIMESTAMP_LOGGING} -v -i 300 -d ${TIMESTAMP_DIR} daemon >> ${TIMESTAMP_LOG} 2>&1&
 }
 
 
