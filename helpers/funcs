@@ -55,11 +55,11 @@ function init-yac-variables {
 	export RUNTIME_DIR="/mnt/app/runtimes"
 
 	if [ "default" == "${NODEJS_VERSION}" ]; then
-		# When using system default nodejs pacakge, then 
+		# When using system default nodejs pacakge, then
 		# using `nodenv` to get the version and path of installed
 		# nodejs package.
 		#
-		# If `nodenv` is not setup yet, needs to activate 
+		# If `nodenv` is not setup yet, needs to activate
 		# /opt/dotfiles/.bashrc
 		#
 		[ "" == "${HOME}" ] && export HOME=/root && INFO ""

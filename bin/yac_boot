@@ -328,6 +328,30 @@ function generate_sys_info_and_notify_cloud {
 }
 
 
+function run_time_daemon_and_restore {
+	local TIMESTAMP_LOGGING="${YAC_LIB_DIR}/timestamp_logging.py"
+	local TIMESTAMP_DIR="${YS_DIR}/share/timestamp"
+	local TIMESTAMP_LOG="${PROFILE_LOG_SYS_DIR}/timestamp_daemon.log"
+	mkdir -p ${TIMESTAMP_DIR}
+
+	echo "boot: before restore => $(date '+%Y/%m/%d %H:%M:%S')" | tee -a ${TIMESTAMP_LOG}
+
+	# Restore timestamp from local disk.
+	#
+	${TIMESTAMP_LOGGING} -v -d ${TIMESTAMP_DIR} restore
+	local RESULT=$?
+	[ "0" == "${RESULT}" ] && INFO "successfully restore timestamp from local storage" || INFO "failed to restore timestamp: ${RESULT}"
+
+	echo "boot: after restore => $(date '+%Y/%m/%d %H:%M:%S')" | tee -a ${TIMESTAMP_LOG}
+
+	# Startup the timestamp logging daemon, which periodically writes UTC
+	# timestamp (in seconds) into disk.
+	#
+	INFO "starting timestamp logging daemon"
+	nohup ${TIMESTAMP_LOGGING} -v -i 5 -d ${TIMESTAMP_DIR} daemon >> ${TIMESTAMP_LOG} 2>&1&
+}
+
+
 function synchronize_time {
 	local SERVER=$(call_func "yac_hook" "get_ntp_server")
 	if [ "" == "${SERVER}" ]; then
@@ -397,7 +421,12 @@ function yac_main {
 	INFO "update_system_id"
 	update_system_id
 	notify_event "update_system_id" ${BOARD_UNIQUE_ID}
-	
+
+	# Restore timestamp from local disk cache.
+	#
+	notify_event "run_time_daemon_and_restore"
+	run_time_daemon_and_restore
+
 	# Setup wifi connection.
 	#
 	INFO "bootup_wireless_adapter"
