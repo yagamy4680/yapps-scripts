@@ -20,7 +20,13 @@ function yac_main {
 
 	local TIME=$(date '+%Y%m%d-%H%M%S')
 	local INDEX=$(find ${PROFILE_LOG_APP_DIR} -name "${APP}*" | awk -F'.' '{print $4, $2}' | grep "^log" | awk '{print $2}' | sort -u | tail -n1)
-	[ "" == "${INDEX}" ] && INDEX="000000" || INDEX=$(printf "%.6d" $((${INDEX} + 1)))
+
+	if [ "" == "${INDEX}" ]; then
+		INDEX="000000"
+	else
+		INDEX=$(echo ${INDEX} | sed 's/^0*//g')
+		INDEX=$(printf "%.6d" $((${INDEX} + 1)))
+	fi
 	local DST_FILE="${PROFILE_CURRENT_DIR}/logs/${APP}.log"
 	local LOG_FILE="${PROFILE_LOG_APP_DIR}/${APP}.${INDEX}.${TIME}.log"
 
