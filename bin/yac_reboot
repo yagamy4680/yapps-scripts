@@ -3,5 +3,9 @@
 ##DOC:	reboot the system.
 
 function yac_main {
+	date > ${SOFT_REBOOT_TAGFILE}
+	sync
+	sleep 1
+	sync
 	reboot
 }

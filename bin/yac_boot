@@ -332,17 +332,21 @@ function run_time_daemon_and_restore {
 	local TIMESTAMP_LOGGING="${YAC_LIB_DIR}/timestamp_logging.py"
 	local TIMESTAMP_DIR="${YS_DIR}/share/timestamp"
 	local TIMESTAMP_LOG="${PROFILE_LOG_SYS_DIR}/timestamp_daemon.log"
+	local RESULT=""
 	mkdir -p ${TIMESTAMP_DIR}
-
-	echo "boot: before restore => $(date '+%Y/%m/%d %H:%M:%S')" | tee -a ${TIMESTAMP_LOG}
 
 	# Restore timestamp from local disk.
 	#
-	${TIMESTAMP_LOGGING} -v -d ${TIMESTAMP_DIR} restore
-	local RESULT=$?
-	[ "0" == "${RESULT}" ] && INFO "successfully restore timestamp from local storage" || INFO "failed to restore timestamp: ${RESULT}"
-
-	echo "boot: after restore => $(date '+%Y/%m/%d %H:%M:%S')" | tee -a ${TIMESTAMP_LOG}
+	if [ -f "${SOFT_REBOOT_TAGFILE}" ]; then
+		INFO "detect soft reboot, ignore timestamp restore => ${SOFT_REBOOT_TAGFILE} ($(cat ${SOFT_REBOOT_TAGFILE}))"
+		rm -f ${SOFT_REBOOT_TAGFILE}
+	else
+		echo "boot: before restore => $(date '+%Y/%m/%d %H:%M:%S')" | tee -a ${TIMESTAMP_LOG}
+		${TIMESTAMP_LOGGING} -v -d ${TIMESTAMP_DIR} restore
+		RESULT=$?
+		[ "0" == "${RESULT}" ] && INFO "successfully restore timestamp from local storage" || INFO "failed to restore timestamp: ${RESULT}"
+		echo "boot: after restore => $(date '+%Y/%m/%d %H:%M:%S')" | tee -a ${TIMESTAMP_LOG}
+	fi
 
 	# Startup the timestamp logging daemon, which periodically writes UTC
 	# timestamp (in seconds) into disk.
