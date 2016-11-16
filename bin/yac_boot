@@ -348,6 +348,16 @@ function run_time_daemon_and_restore {
 		echo "boot: after restore => $(date '+%Y/%m/%d %H:%M:%S')" | tee -a ${TIMESTAMP_LOG}
 	fi
 
+	# Cleanup old timestamp logging directory.
+	# 
+	local TMP=$(mktemp /tmp/XXXXXX)
+	find /opt/ys/share/timestamp -maxdepth 1 -mindepth 1 -type d | sort > ${TMP}
+	if [ "$(cat ${TMP} | wc -l)" -gt "6" ]; then
+		local DIR=$(cat ${TMP} | head -n1)
+		[ "" != "${DIR}" ] && [ "/" != "${DIR}" ] && INFO "cleanup old timestamp logging directory: $(LIGHT_GREEN ${DIR})" && rm -rf ${DIR}
+	fi
+	rm -f ${TMP}
+
 	# Startup the timestamp logging daemon, which periodically writes UTC
 	# timestamp (in seconds) into disk.
 	#

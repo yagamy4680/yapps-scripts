@@ -65,6 +65,13 @@ def get_system_uptime():
     return uptime_seconds
 
 
+def listdir_with_fullpath(directory, is_dir=True):
+    func = os.path.isdir if is_dir else os.path.isfile
+    xs = [ os.path.join(directory, x) for x in os.listdir(directory) ]
+    xs = [ x for x in xs if func(x) ]
+    return xs
+
+
 class Service:
     def __init__(self, directory, verbose, interval):
         self.directory = directory
@@ -133,9 +140,10 @@ class Service:
             sys.exit(3)
         else:
             try:
-                name = "%06d" % index
-                directory = os.path.join(self.directory, name)
-                xs = [ x for x in os.listdir(directory) ]
+                directory = self.directory
+                xs = listdir_with_fullpath(directory)
+                xs = [ listdir_with_fullpath(x, False) for x in xs ]
+                xs = [ y for x in xs for y in x ]
                 xs = [ x for x in xs if x[-4:] == ".txt" ]
                 xs.sort()
                 # self.debug("found these files ...")
@@ -146,6 +154,8 @@ class Service:
                 else:
                     xs.sort()
                     zz = xs[-1]
+                    nn = os.path.basename(os.path.dirname(zz))
+                    zz = os.path.basename(zz)
                     xs = zz.split(".")[0].split("_")
                     if len(xs) < 5:
                         self.debug("insufficient token in filename: %s" % (zz))
@@ -156,7 +166,7 @@ class Service:
                         day = int(xs[2])
                         seconds = int(xs[3])
                         zone = xs[4]
-                        self.debug("restore: index = %s" % (name))
+                        self.debug("restore: index = %s" % (nn))
                         self.debug("restore: uptime = %d" % (uptime))
                         self.debug("restore: utc = %d" % (utc))
                         self.debug("restore: day = %d" % (day))
