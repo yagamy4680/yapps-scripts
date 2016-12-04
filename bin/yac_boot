@@ -122,6 +122,7 @@ function find_ap_and_connect {
 	local TMP2=$(mktemp /tmp/XXXXXX)
 	local TMP3=$(mktemp /tmp/XXXXXX)
 	local TMP4=$(mktemp /tmp/XXXXXX)
+	local PROFILE_WPA_CONF="${YS_DIR}/profiles/${BOARD_PROFILE}/wpa.config"
 
 	[ "" == "${WIRELESS_KEYSTORES}" ] && WIRELESS_KEYSTORES="${YS_DIR}/wireless-keystores.conf"
 	[ ! -f "${WIRELESS_KEYSTORES}" ] && WIRELESS_KEYSTORES="${YS_DIR}/wireless-keystores.conf"
@@ -133,37 +134,46 @@ function find_ap_and_connect {
 		cat ${WIRELESS_KEYSTORES} | sed -e 's/^ *//' | sed -e 's/ *$//' | sed 's/#.*$//g' | grep -v "^$" | nl -nrz -w9 >> ${TMP2}
 	fi
 	cat ${AP_LIST} | tr '\n' '\0' | xargs -0 -I{} sh -c "grep -P \"^.........\t{}\t\" ${TMP2}" >> ${TMP3}
-	sort ${TMP3} | awk -F '\t' '{printf "%s\t%s\n", $2, $3}' > ${TMP4}
+	[ -f "${PROFILE_WPA_CONF}" ] && echo ${PROFILE_WPA_CONF} > ${TMP4}
+	sort ${TMP3} | awk -F '\t' '{printf "%s\t%s\n", $2, $3}' >> ${TMP4}
 	INFO "try access-points: $(BLUE $(cat ${TMP4} | awk -F '\t' '{print $1}' | tr '\n' ' '))"
+
+	local WIFI_LOGFILE="${PROFILE_LOG_SYS_DIR}/wireless_`date +%Y_%m%d_%H%M`.log"
+	IFS=$' \n'
+	local SETTINGS=($(cat ${TMP4}))
+	unset IFS
 
 	rm -f ${TMP2}
 	rm -f ${TMP3}
+	rm -f ${TMP4}
 	rm -f ${AP_LIST}
 
-	WIFI_LOGFILE="${PROFILE_LOG_SYS_DIR}/wireless_`date +%Y_%m%d_%H%M`.log"
-	TMP5=$(mktemp)
-	IFS=$' \n'
-	SETTINGS=($(cat ${TMP4}))
-	unset IFS
 	export WIRELESS_CONNECTED="false"
 	export WIRELESS_CONNECTIVITY="0"
-	rm -f ${TMP4}
 	source ${YAC_LIB_DIR}/wireless_connect
 
 	# Try to connect wireless access point one-by-one
 	#
 	for s in "${SETTINGS[@]}" ; do
-		SSID=$(echo $s | awk '{print $1}')
-		PASS=$(echo $s | awk '{print $2}')
-		INFO "connecting to $(YELLOW ${SSID}) with password $(YELLOW ${PASS})"
+		local SSID=$(echo $s | awk '{print $1}')
+		local PASS=$(echo $s | awk '{print $2}')
+		local TMP5=$(mktemp /tmp/XXXXXX)
 		notify_event "find_ap_and_connect" ${WIRELESS_IF} ${SSID} ${PASS}
-		WIRELESS_IF=${WIRELESS_IF} WIFI_LOGFILE=${WIFI_LOGFILE} WAITING_TIME_LOGFILE=${TMP5} connect_to_ap ${SSID} ${PASS}
-		INFO "connect_to_ap returns $?"
+		if [ "${SSID}" == "${PROFILE_WPA_CONF}" ]; then
+			INFO "connecting to wireless access-point with wpa config $(YELLOW ${PROFILE_WPA_CONF})"
+			WIRELESS_IF=${WIRELESS_IF} WIFI_LOGFILE=${WIFI_LOGFILE} WAITING_TIME_LOGFILE=${TMP5} connect_to_ap_with_conf ${PROFILE_WPA_CONF}
+			INFO "connect_to_ap_with_conf returns $?"
+		else
+			INFO "connecting to $(YELLOW ${SSID}) with password $(YELLOW ${PASS})"
+			WIRELESS_IF=${WIRELESS_IF} WIFI_LOGFILE=${WIFI_LOGFILE} WAITING_TIME_LOGFILE=${TMP5} connect_to_ap ${SSID} ${PASS}
+			INFO "connect_to_ap returns $?"
+		fi
 
 		export WIRELESS_AP_MAC=$(iwconfig ${WIRELESS_IF} | grep 'Access Point' | sed 's/.*Access Point: //g')
 		export WIRELESS_IP_ADDR=$(ifconfig ${WIRELESS_IF} | grep "inet addr" | awk '{print $2}' | sed 's/addr://g')
 		if [ "" == "$(echo ${WIRELESS_AP_MAC} | grep ':')" ] || [ "" == "${WIRELESS_IP_ADDR}" ]; then
 			sleep 1
+			rm -f ${TMP5}
 		else
 			export WIRELESS_CONNECTED="true"
 			INFO "wireless-ap-mac = $(LIGHT_GREEN ${WIRELESS_AP_MAC})"

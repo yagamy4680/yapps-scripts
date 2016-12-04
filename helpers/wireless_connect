@@ -54,3 +54,57 @@ function connect_to_ap {
 	service avahi-daemon restart > /dev/null 2>&1
 	return 0
 }
+
+
+function connect_to_ap_with_conf {
+	set -e
+	local CONFIG=$1
+	[ "" == "${CONFIG}" ] && ERR "ERR: please specify wpa config file ..." && return
+	[ ! -f "${CONFIG}" ] && ERR "ERR: missing wpa config file: ${CONFIG} ..." && return
+
+	INFO "${WIRELESS_IF} clean-up previous instance ..."
+	ps aux | grep wpa_supplicant | grep ${WIRELESS_IF} | awk '{print $2}' | xargs -I{} sh -c "kill -9 {}"
+	ps aux | grep dhclient | grep ${WIRELESS_IF} | awk '{print $2}' | xargs -I{} sh -c "kill -9 {}"
+
+	INFO "${WIRELESS_IF} connecting to wireless router with config $(BLUE ${CONFIG}):"
+	cat ${CONFIG}
+
+	[ "" == "${WIFI_LOGFILE}" ] && WIFI_LOGFILE="/tmp/wireless-`date +%Y%m%d%H%M%S`-$1.log"
+
+	wpa_supplicant -dd -t -Dwext -i ${WIRELESS_IF} -c${CONFIG} -f${WIFI_LOGFILE} -B > /dev/null 2>&1
+
+	times=0
+
+	while [ "" != "$(iwconfig ${WIRELESS_IF} | head -n1 | grep 'unassociated')" ]
+	do
+		sleep 1
+		times=$(($times+1))
+		if [ "$times" -gt 20 ];
+		then
+			INFO "${WIRELESS_IF} handshake timeout, more than 20 seconds, return 1"
+			return 1
+		fi
+		INFO "${WIRELESS_IF} waiting for wifi handshake with WPA-CONF: $(BLUE ${CONFIG}) ..."
+	done
+
+	while [ "" == "$(ifconfig ${WIRELESS_IF} | grep 'BROADCAST' | grep 'RUNNING')" ]
+	do
+		sleep 1
+		times=$(($times+1))
+		if [ "$times" -gt 20 ];
+		then
+			INFO "${WIRELESS_IF} authentication timeout, more than 20 seconds, return 2"
+			return 2
+		fi
+		INFO "${WIRELESS_IF} waiting for wifi authentication with WPA-CONF: $(BLUE ${CONFIG}) ..."
+	done
+
+	[ "" == "${WAITING_TIME_LOGFILE}" ] || echo $times > ${WAITING_TIME_LOGFILE}
+
+	INFO "${WIRELESS_IF} renew dhcp settings ..."
+	dhclient ${WIRELESS_IF}
+
+	INFO "${WIRELESS_IF} restart bonjour service ..."
+	service avahi-daemon restart > /dev/null 2>&1
+	return 0
+}
