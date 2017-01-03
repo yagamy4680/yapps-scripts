@@ -13,7 +13,7 @@ The system configuration file `/tmp/yapps.conf.sh` is generated when `yac boot` 
 
 Here are currently supported configurations:
 
-```python
+```yaml
 ## system configurations (default)
 ##--------------------------------------------------------
 
