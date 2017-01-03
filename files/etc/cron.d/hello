@@ -1,0 +1,10 @@
+#!/bin/bash
+#
+
+##---------------------
+#!!CRONTAB	*/1 * * * *
+##---------------------
+
+function crontab_entry {
+	INFO "hello world"
+}

@@ -224,7 +224,7 @@ function generate_ntp_script {
 [ "" == "$2" ] && return
 cat << __EOF__ > $2
 #!/bin/bash
-[ "" == "\$(which sntp)" ] && ntpdate -b $1 || sntp -s $1
+ntpdate -b $1
 echo "\$?" > ${BOOT_NTP_SYNC}
 date > /tmp/aa
 __EOF__
@@ -495,6 +495,14 @@ function yac_main {
 	INFO "synchronize_time"
 	notify_event "synchronize_time"
 	synchronize_time
+
+	# Load all crontab tasks from these 3 sources:
+	#	- ${YAC_DIR}/files/etc/cron.d/*
+	#	- ${YS_DIR}/etc/cron.d/*
+	#	- ${PROFILE_CURRENT_DIR}/etc/cron.d/*
+	#
+	INFO "load_crontab_tasks"
+	load_crontab_tasks
 
 	INFO "run_init_scripts"
 	run_init_scripts

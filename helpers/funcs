@@ -153,4 +153,27 @@ function load_configurations {
 	fi
 }
 
+function find_crontab_tasks {
+	local TMP_FILE=$1
+	local DIR=$2
+	[ ! -d "${DIR}" ] && return
 
+	local TASKS=($(find ${DIR} -maxdepth 1 -mindepth 1 -type f))
+	for t in "${TASKS[@]}"; do
+		local SCHEDULE=$(cat $t | grep "^#\!\!CRONTAB" | awk -F'\t' '{print $2}')
+		local ENTRY=$(cat $t | grep crontab_entry)
+		if [ "" != "${SCHEDULE}" ] && [ "" != "${ENTRY}" ]; then
+			INFO "add crontab task: $(LIGHT_GREEN $t)"
+			echo -e "${SCHEDULE}\t${YAC_BIN_DIR}/yac crontab ${t}" >> ${TMP_FILE}
+		fi
+	done
+}
+
+function load_crontab_tasks {
+	local TMP=$(mktemp /tmp/XXXXXX)
+	find_crontab_tasks ${TMP} ${YAC_DIR}/files/etc/cron.d
+	find_crontab_tasks ${TMP} ${YS_DIR}/etc/cron.d
+	find_crontab_tasks ${TMP} ${PROFILE_CURRENT_DIR}/etc/cron.d
+	cat ${TMP} | crontab -
+	rm -f ${TMP}
+}

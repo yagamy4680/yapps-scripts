@@ -1,0 +1,12 @@
+#!/bin/bash
+#
+##DOC:	wrapper script to run crontab tasks managed by yapps-scripts.
+
+function yac_main {
+	local NAME=$1
+	shift
+	[ ! -f "${NAME}" ] && ERR "no such script to execute: ${NAME}" && return
+
+	source ${NAME}
+	crontab_entry $@ | tee -a /dev/ttyS0
+}
