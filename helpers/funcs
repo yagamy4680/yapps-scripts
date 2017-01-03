@@ -136,16 +136,21 @@ function call_func {
 }
 
 function load_configurations {
-	local PROFILE_CONF="${PROFILE_CURRENT_DIR}/etc/system.conf"
+	local PROFILE_SYS_CONF="${PROFILE_CURRENT_DIR}/etc/system.conf"
+	local BOARD_SYS_CONF="${YS_DIR}/system.conf"
 	local DEFAULT_CONF="${YAC_DIR}/files/system.conf"
 	local CONF="/tmp/yapps.conf.sh"
 	local GEN_CONF="${YAC_LIB_DIR}/gen_conf.py"
 	[ -f "${CONF}" ] && source ${CONF} && return
 	[ "" == "${PROFILE_CONF}" ] && PROFILE_CONF="/tmp/aa"
 
-	PREFIX=YAPPS_SYS_ ${GEN_CONF} ${DEFAULT_CONF} ${PROFILE_CONF} ${CONF}
-	[ "0" == "$?" ] && source ${CONF} && return 0
-	INFO "failed to generate ${CONF}"
+	PREFIX=YAPPS_SYS_ ${GEN_CONF} ${CONF} ${DEFAULT_CONF} ${BOARD_SYS_CONF} ${PROFILE_SYS_CONF}
+	if [ "0" == "$?" ]; then
+		source ${CONF}
+		return 0
+	else
+		INFO "failed to generate ${CONF}"
+	fi
 }
 
 

@@ -460,7 +460,7 @@ function yac_main {
 	# to produce configuration /tmp/yapps.conf.sh, and then load it.
 	#
 	INFO "load_configurations"
-	load_configurations
+	CONF_VERBOSE=true load_configurations
 
 	# Initiate extra ethernet interfaces.
 	#

@@ -24,42 +24,64 @@ def load_as_dictionary(file):
     return dict(xs)
 
 
+def merge_configuration(defaults, conf_file, used_files):
+    if not os.path.exists(conf_file):
+        return defaults
+
+    dest = {}
+    try:
+        conf = load_as_dictionary(conf_file)
+        used = False
+        for key, value in defaults.items():
+            if key in conf:
+                dest[key] = conf[key]
+                used = True
+                print("overwrite %s with %s" % (key, conf_file))
+            else:
+                dest[key] = defaults[key]
+        if used:
+            used_files.append(conf_file)
+        return dest
+    except Exception as e:
+        print("failed to load %s" % (conf_file))
+        return defaults
+
+
+
+
 def main():
     if len(sys.argv) < 4:
         print("too few arguments")
         sys.exit(1)
 
-    sys_file = sys.argv[1]
-    profile_file = sys.argv[2]
-    output_script_file = sys.argv[3]
-
+    output_script_file = sys.argv[1]
+    sys_file = sys.argv[2]
+    files = sys.argv[3:]
     if not os.path.exists(sys_file):
         print("%s doesn't exist" % sys_file)
         sys.exit(2)
 
     sys_config = load_as_dictionary(sys_file)
-    profile_config = {}
-    try:
-        profile_config = load_as_dictionary(profile_file) if os.path.exists(profile_file) else profile_config
-    except Exception as e:
-        print("failed to load %s" % (profile_file))
-
-    prefix = os.environ['PREFIX'] if 'PREFIX' in os.environ else ""
-
-    for key, value in sys_config.items():
-        if key in profile_config:
-            sys_config[key] = profile_config[key]
+    used_files = []
+    for f in files:
+        sys_config = merge_configuration(sys_config, f, used_files)
 
     with open(output_script_file, 'w') as out:
+        prefix = os.environ['PREFIX'] if 'PREFIX' in os.environ else ""
         print("#!/bin/bash\n#", file=out)
         xs = sys_config.items()
         xs = sorted(xs)
         [ print("export %s%s=\"%s\"" % (prefix, key, value), file=out) for key, value in xs ]
-        print("", file=out)
-        print("INFO \"[conf] source0: $(YELLOW %s)\"" % (sys_file), file=out)
-        print("INFO \"[conf] source1: $(YELLOW %s)\"" % (profile_file), file=out)
-        print("INFO \"[conf] environment variables loaded from $(PURPLE %s)\"" % (output_script_file), file=out)
-        [ print("INFO \"[conf] \t%s%s: $(LIGHT_GREEN %s)\"" % (prefix, key, value), file=out) for key, value in xs ]
+        print('', file=out)
+        print('if [ "true" == "${CONF_VERBOSE}" ]; then', file=out)
+        print("\tINFO \"[conf] $(PURPLE %s) is merged from:\"" % (output_script_file), file=out)
+        print("\tINFO \"[conf]\t[v] $(YELLOW %s)\"" % (sys_file), file=out)
+        for f in files:
+            used = "[o]" if f in used_files else "[x]"
+            print("\tINFO \"[conf]\t%s $(YELLOW %s)\"" % (used, f), file=out)
+        print("\tINFO \"[conf] environment variables loaded from $(PURPLE %s)\"" % (output_script_file), file=out)
+        [ print("\tINFO \"[conf] \t%s%s: $(LIGHT_GREEN %s)\"" % (prefix, key, value), file=out) for key, value in xs ]
+        print('fi', file=out)
 
 
 if __name__ == '__main__':

@@ -3,6 +3,7 @@
 ##DOC:	show all environment variables availabe under yac XXX commands.
 
 function yac_main {
+CONF_VERBOSE=true load_configurations
 IFS='' read -r -d '' ENVS <<__EOF__
 Environment
     YS_DIR                  = $(LIGHT_GREEN ${YS_DIR})
