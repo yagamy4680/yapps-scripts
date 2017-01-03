@@ -442,14 +442,21 @@ function yac_main {
 	INFO "check_prerequisites"
 	check_prerequisites
 
-	INFO "initiate_ethernet_interfaces"
-	initiate_ethernet_interfaces
-
 	# Mount all necessary directories and also
 	# try to include /PROFILE/current/etc/.yac bash script
 	#
 	INFO "mount_directories"
 	mount_directories
+
+	# Merge system configurations (/opt/yapps-scripts/file/system.conf)
+	# and profile system configurations (${PROFILE_CURRENT_DIR}/etc/system.conf)
+	# to produce configuration /tmp/yapps.conf.sh, and then load it.
+	#
+	INFO "load_configurations"
+	load_configurations
+
+	INFO "initiate_ethernet_interfaces"
+	initiate_ethernet_interfaces
 
 	# Generate all required identities.
 	#

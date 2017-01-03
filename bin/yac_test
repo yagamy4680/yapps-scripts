@@ -40,6 +40,11 @@ function test_hook {
 	notify_event "end"
 }
 
+function test_load_configurations {
+	load_configurations 
+	INFO "YAPPS_SYS_AA: ${YAPPS_SYS_AA}"
+}
+
 function yac_main {
 	NAME=$1
 	shift
