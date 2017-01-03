@@ -7,8 +7,8 @@ The system configuration file `/tmp/yapps.conf.sh` is generated when `yac boot` 
 
 | file | purpose |
 |---|---|
-| `${YAC_DIR}/files/system.conf` | as default configurations that yapps-scripts support: `/opt/yapps-scripts/files/system.conf` |
-| `${YS_DIR}/system.conf` | the configurations from yapps-env when building the OS image: `/opt/ys/system.conf` |
+| `${YAC_DIR}/files/etc/system.conf` | as default configurations that yapps-scripts support: `/opt/yapps-scripts/files/etc/system.conf` |
+| `${YS_DIR}/etc/system.conf` | the configurations from yapps-env when building the OS image: `/opt/ys/etc/system.conf` |
 | `${PROFILE_CURRENT_DIR}/etc/system.conf` | the configurations from the loaded profile, E.g. `/dhvac/current/etc/system.conf` |
 
 Here are currently supported configurations:
