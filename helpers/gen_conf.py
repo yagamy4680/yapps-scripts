@@ -17,6 +17,7 @@ def load_as_dictionary(file):
     with open(file) as f:
         lines = f.readlines()
     xs = [ l.strip() for l in lines ]
+    xs = [ x for x in xs if len(x) is not 0 ]
     xs = [ x for x in xs if not x.startswith('#') ]
     xs = [ x.split(':') for x in xs ]
     xs = [ (x[0], clean_string(x[1])) for x in xs ]
@@ -37,7 +38,12 @@ def main():
         sys.exit(2)
 
     sys_config = load_as_dictionary(sys_file)
-    profile_config = load_as_dictionary(profile_file) if os.path.exists(profile_file) else {}
+    profile_config = {}
+    try:
+        profile_config = load_as_dictionary(profile_file) if os.path.exists(profile_file) else profile_config
+    except Exception as e:
+        print("failed to load %s" % (profile_file))
+
     prefix = os.environ['PREFIX'] if 'PREFIX' in os.environ else ""
 
     for key, value in sys_config.items():

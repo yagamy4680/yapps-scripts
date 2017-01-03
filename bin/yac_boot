@@ -6,7 +6,8 @@ function check_prerequisites {
 	check_tool_prerequisites ifconfig iwlist
 }
 
-function initiate_ethernet_interfaces {
+function initiate_extra_ethernet_interfaces {
+	[ "true" == "${YAPPS_SYS_INITIATE_EXTRA_ETHERNET_IFS}" ] || return
 	local INTERFACES=($(find /sys/class/net -maxdepth 1 -mindepth 1 | grep "/sys/class/net/eth" | grep -v "/sys/class/net/eth0"))
 	for eth in "${INTERFACES[@]}" ; do
 		local DEVICE=$(basename ${eth})
@@ -223,7 +224,7 @@ function generate_ntp_script {
 [ "" == "$2" ] && return
 cat << __EOF__ > $2
 #!/bin/bash
-ntpdate -b $1
+[ "" == "\$(which sntp)" ] && ntpdate -b $1 || sntp -s $1
 echo "\$?" > ${BOOT_NTP_SYNC}
 date > /tmp/aa
 __EOF__
@@ -360,11 +361,11 @@ function run_time_daemon_and_restore {
 		INFO "detect soft reboot, ignore timestamp restore => ${SOFT_REBOOT_TAGFILE} ($(cat ${SOFT_REBOOT_TAGFILE}))"
 		rm -f ${SOFT_REBOOT_TAGFILE}
 	else
-		echo "boot: before restore => $(date '+%Y/%m/%d %H:%M:%S')" | tee -a ${TIMESTAMP_LOG}
+		INFO "boot: before restore => $(date '+%Y/%m/%d %H:%M:%S')" | tee -a ${TIMESTAMP_LOG}
 		${TIMESTAMP_LOGGING} -v -d ${TIMESTAMP_DIR} restore
 		RESULT=$?
 		[ "0" == "${RESULT}" ] && INFO "successfully restore timestamp from local storage" || INFO "failed to restore timestamp: ${RESULT}"
-		echo "boot: after restore => $(date '+%Y/%m/%d %H:%M:%S')" | tee -a ${TIMESTAMP_LOG}
+		INFO "boot: after restore => $(date '+%Y/%m/%d %H:%M:%S')" | tee -a ${TIMESTAMP_LOG}
 	fi
 
 	# Cleanup old timestamp logging directory.
@@ -386,24 +387,30 @@ function run_time_daemon_and_restore {
 
 
 function synchronize_time {
-	local SERVER=$(call_func "yac_hook" "get_ntp_server")
-	if [ "" == "${SERVER}" ]; then
-		INFO "no ntp server from yapps profile, ignore NTP time synchronization"
-		echo "-3" > ${BOOT_NTP_SYNC}
-	else
+	[ "emmc" == "${YAPPS_SYS_RESTORE_SYSTEM_TIME_WITH_SOURCE}" ] && return
+
+	if [ "ntp" == "${YAPPS_SYS_RESTORE_SYSTEM_TIME_WITH_SOURCE}" ]; then
+		local SERVER=$(call_func "yac_hook" "get_ntp_server")
+		[ "" == "${SERVER}" ] && SERVER="ntp.ubuntu.com"
 		INFO "using $(LIGHT_GREEN ${SERVER}) for time synchronization"
-		if [ "true" == "${WIRELESS_CONNECTED}" ]; then
-			if [ "99" == "${WIRELESS_CONNECTIVITY}" ]; then
-				generate_ntp_script ${SERVER} /tmp/ntp
-				/tmp/ntp &
-			else
-				INFO "but connectivity (${WIRELESS_CONNECTIVITY}) is lower than 99, ignore NTP time synchronization"
-				echo "-4" > ${BOOT_NTP_SYNC}
-			fi
+		ping -c 1 -W 5 8.8.8.8 > /dev/null 2>&1
+		if [ "0" == "$?" ]; then
+			generate_ntp_script ${SERVER} /tmp/ntp && /tmp/ntp
 		else
-			INFO "but wireless disconnected, ignore NTP time synchronization"
-			echo "-5" > ${BOOT_NTP_SYNC}
+			if [ "true" == "${WIRELESS_CONNECTED}" ]; then
+				if [ "99" == "${WIRELESS_CONNECTIVITY}" ]; then
+					generate_ntp_script ${SERVER} /tmp/ntp && /tmp/ntp
+				else
+					INFO "but connectivity (${WIRELESS_CONNECTIVITY}) is lower than 99, ignore NTP time synchronization"
+					echo "-4" > ${BOOT_NTP_SYNC}
+				fi
+			else
+				INFO "but wireless disconnected, ignore NTP time synchronization"
+				echo "-5" > ${BOOT_NTP_SYNC}
+			fi
 		fi
+	elif [ "rtc" == "${YAPPS_SYS_RESTORE_SYSTEM_TIME_WITH_SOURCE}" ]; then
+		INFO "time synchronization with RTC is NOT IMPLEMENTED yet!!"
 	fi
 }
 
@@ -455,8 +462,10 @@ function yac_main {
 	INFO "load_configurations"
 	load_configurations
 
-	INFO "initiate_ethernet_interfaces"
-	initiate_ethernet_interfaces
+	# Initiate extra ethernet interfaces.
+	#
+	INFO "initiate_extra_ethernet_interfaces"
+	initiate_extra_ethernet_interfaces
 
 	# Generate all required identities.
 	#
