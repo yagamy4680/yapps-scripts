@@ -48,3 +48,36 @@ INITIATE_EXTRA_ETHERNET_IFS: "true"
 #
 RESTORE_SYSTEM_TIME_WITH_SOURCE: "emmc"
 ```
+
+## System Crontab Tasks
+
+During init process, the `yac boot` script tries to load crontab task scripts from following 3 source directories:
+
+- `${YAC_DIR}/files/etc/cron.d/`
+- `${YS_DIR}/etc/cron.d/`
+- `${PROFILE_CURRENT_DIR}/etc/cron.d`
+
+Each file must be a bash shell script, with the entry function `crontab_entry`, and each file must have one line to specify its execution frequency. That line starts with `#!!CRONTAB`, following by `\t` and the execution frequency in crontab format. Following example shows the script to be executed every 5 minutes to display **hello** in the console:
+
+```bash
+$ cat /opt/yapps-scripts/files/etc/cron.d/hello
+
+#!!CRONTAB	*/5 * * * *
+
+function crontab_entry {
+    echo "hello"
+}
+```
+
+After init process, the crontab task is registered as below, that means the task is loaded by `yac_crontab` wrapper script to execute: 
+
+```bash
+# crontab -l
+*/5 * * * *	/opt/yapps-scripts/bin/yac crontab /opt/yapps-scripts/files/etc/cron.d/hello
+```
+
+
+
+
+
+
