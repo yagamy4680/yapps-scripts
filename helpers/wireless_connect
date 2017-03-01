@@ -71,7 +71,13 @@ function connect_to_ap_with_conf {
 
 	[ "" == "${WIFI_LOGFILE}" ] && WIFI_LOGFILE="/tmp/wireless-`date +%Y%m%d%H%M%S`-$1.log"
 
-	wpa_supplicant -dd -t -Dwext -i ${WIRELESS_IF} -c${CONFIG} -f${WIFI_LOGFILE} -B > /dev/null 2>&1
+	local DRIVER="$(cat ${CONFIG} | grep "^##DRIVER" | head -n1 | awk -F':' '{print $2}' | sed 's/\ //g')"
+	[ "" == "${DRIVER}" ] && DRIVER="wext"
+
+	local COMMAND="wpa_supplicant -dd -t -D${DRIVER} -i ${WIRELESS_IF} -c${CONFIG} -f${WIFI_LOGFILE} -B"
+	INFO "$(LIGHT_GREEN ${COMMAND})"
+	${COMMAND} > /dev/null 2>&1
+	# wpa_supplicant -dd -t -D${DRIVER} -i ${WIRELESS_IF} -c${CONFIG} -f${WIFI_LOGFILE} -B > /dev/null 2>&1
 
 	times=0
 
