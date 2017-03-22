@@ -14,6 +14,11 @@ function init-yac-variables {
 	[ "" == "${BOARD_BASE_VERSION}" ] && export BOARD_BASE_VERSION=$(cat /etc/environment | grep "^BOARD_BASE_VERSION" | awk -F'=' '{print $2}')
 	[ "" == "${BOARD_BASE_VERSION}" ] && BOARD_BASE_VERSION="99991231z"
 
+	# Load BOARD variable from /etc/environment first, and then fallback to /etc/ys.conf
+	#
+	[ "" == "${BOARD}" ] && export BOARD=$(cat /etc/environment | grep "^BOARD=" | awk -F'=' '{print $2}')
+	[ "" == "${BOARD}" ] && export BOARD=$(cat /etc/ys.conf | grep -P "^BOARD\t" | awk -F'\t' '{print $2}')
+
 	[ -f "/mnt/app/profiles/${BOARD_PROFILE}/env" ] || {
 		echo "production" > /mnt/app/profiles/${BOARD_PROFILE}/env
 	}
