@@ -2,7 +2,32 @@
 #
 ##DOC:	show all environment variables availabe under yac XXX commands.
 
-function yac_main {
+function show_variable {
+	case "$1" in
+		BOARD_PROFILE_VERSION)
+			mount | grep "/${BOARD_PROFILE}/current" | awk '{print $1}' | awk -F'/' '{print $6}'
+			;;
+		BOARD_UNIQUE_ID)
+			cat /tmp/ttt_system | grep "^id" | awk '{print $2}'
+			;;
+		BOARD_SERIAL_NUMBER)
+			cat /tmp/ttt_system | grep "^sn" | awk '{print $2}'
+			;;
+		KERNEL)
+			uname -r
+			;;
+		ARCHITECTURE)
+			uname -m
+			;;
+		DISTRIBUTION)
+			lsb_release -a 2>/dev/null | grep "Description" | awk -F':' '{print $2}' | sed 's/\t//g'
+			;;
+		*)
+			;;
+	esac
+}
+
+function dump_environment {
 CONF_VERBOSE=true load_configurations
 IFS='' read -r -d '' ENVS <<__EOF__
 Environment
@@ -21,15 +46,16 @@ Environment
     NODEJS_VERSION          = $(PURPLE ${NODEJS_VERSION})
     RUNTIME_NODEJS_DIR      = $(LIGHT_GREEN ${RUNTIME_NODEJS_DIR})
     --------------------------------------------------------
+    BOARD                   = $(PURPLE ${BOARD})
     BOARD_PROFILE           = $(PURPLE ${BOARD_PROFILE})
     BOARD_PROFILE_ENV       = $(PURPLE ${BOARD_PROFILE_ENV})
-    BOARD_PROFILE_VERSION   = $(PURPLE $(mount | grep "/${BOARD_PROFILE}/current" | awk '{print $1}' | awk -F'/' '{print $6}')) (next: $(YELLOW ${BOARD_PROFILE_VERSION})) 
-    BOARD_UNIQUE_ID         = $(PURPLE $(cat /tmp/ttt_system | grep "^id" | awk '{print $2}'))
-    BOARD_SERIAL_NUMBER     = $(PURPLE $(cat /tmp/ttt_system | grep "^sn" | awk '{print $2}'))
+    BOARD_PROFILE_VERSION   = $(PURPLE $(show_variable BOARD_PROFILE_VERSION)) (next: $(YELLOW ${BOARD_PROFILE_VERSION})) 
+    BOARD_UNIQUE_ID         = $(PURPLE $(show_variable BOARD_UNIQUE_ID))
+    BOARD_SERIAL_NUMBER     = $(PURPLE $(show_variable BOARD_SERIAL_NUMBER))
     BOARD_BASE_VERSION      = $(PURPLE ${BOARD_BASE_VERSION})
-    KERNEL                  = $(YELLOW $(uname -r))
-    ARCHITECTURE            = $(YELLOW $(uname -m))
-    DISTRIBUTION            = $(YELLOW $(lsb_release -a 2>/dev/null | grep "Description" | awk -F':' '{print $2}' | sed 's/\t//g'))
+    KERNEL                  = $(YELLOW $(show_variable KERNEL))
+    ARCHITECTURE            = $(YELLOW $(show_variable ARCHITECTURE))
+    DISTRIBUTION            = $(YELLOW $(show_variable DISTRIBUTION))
     --------------------------------------------------------
     CLOUD_ARCHIVE_URL       = $(YELLOW ${CLOUD_ARCHIVE_URL})
     CLOUD_RELEASE_URL       = $(YELLOW ${CLOUD_RELEASE_URL})
@@ -42,4 +68,14 @@ Environment
 $(cat /tmp/ttt_system | awk '{printf "    %s\n", $0}')
 __EOF__
 echo -en "${ENVS}"
+}
+
+function yac_main {
+	local NAME=$1
+	[ "" == "${NAME}" ] && dump_environment && return 0
+
+	local VALUE=${!NAME}
+	[ "" == "${VALUE}" ] && VALUE=$(show_variable ${NAME})
+	[ "" == "${VALUE}" ] && exit 1
+	echo ${VALUE}
 }
