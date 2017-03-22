@@ -182,3 +182,11 @@ function load_crontab_tasks {
 	cat ${TMP} | crontab -
 	rm -f ${TMP}
 }
+
+function run_cmd_inside_hook {
+	[ "" == "${HOOK_NAME}" ] && local HOOK_NAME="UNKNOWN"
+	[ "" == "${HOOK_STAGE}" ] && local HOOK_STAGE="UNKNOWN"
+	[ "" == "${HOOK_INNER_FUNC}" ] && local HOOK_INNER_FUNC="UNKOWN"
+	INFO "[hook]\t$(YELLOW ${HOOK_NAME})/$(LIGHT_GREEN ${HOOK_STAGE})/$(LIGHT_GRAY ${HOOK_INNER_FUNC}) => $(PURPLE $@)"
+	${BASH} -c "$@"
+}

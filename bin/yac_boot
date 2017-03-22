@@ -39,9 +39,13 @@ function mount_directories {
 		INFO "mount $(LIGHT_GREEN ${PROFILE_CURRENT_DIR})"
 		mkdir -p ${PROFILE_CURRENT_LOG_DIR}
 	fi
+}
 
-	local HOOK="${PROFILE_CURRENT_DIR}/etc/.yac"
-	[ -f "${HOOK}" ] && source ${HOOK} && INFO "source $(LIGHT_GREEN ${HOOK})"
+function load_hooks {
+	local BOARD_SYS_HOOK="${YS_DIR}/etc/.yac"
+	local PROFILE_SYS_HOOK="${PROFILE_CURRENT_DIR}/etc/.yac"
+	[ -f "${BOARD_SYS_HOOK}" ] && source ${BOARD_SYS_HOOK} && INFO "source $(LIGHT_GREEN ${BOARD_SYS_HOOK})"
+	[ -f "${PROFILE_SYS_HOOK}" ] && source ${PROFILE_SYS_HOOK} && INFO "source $(LIGHT_GREEN ${PROFILE_SYS_HOOK})"
 }
 
 function output {
@@ -440,6 +444,12 @@ function run_init_scripts {
 
 
 function notify_event {
+	# Invoke hook function from BOARD_SYS_HOOK (YS_DIR/etc/.yac)
+	#
+	call_func "yac_board_hook" "boot" $@
+
+	# Invoke hook function from PROFILE_SYS_HOOK (/PROFILE/current/etc/.yac)
+	#
 	call_func "yac_hook" "boot" $@
 }
 
@@ -449,8 +459,8 @@ function yac_main {
 	INFO "check_prerequisites"
 	check_prerequisites
 
-	# Mount all necessary directories and also
-	# try to include /PROFILE/current/etc/.yac bash script
+	# Mount all necessary directories from partitions other
+	# than boot partition.
 	#
 	INFO "mount_directories"
 	mount_directories
@@ -461,6 +471,14 @@ function yac_main {
 	#
 	INFO "load_configurations"
 	CONF_VERBOSE=true load_configurations
+
+	# Mount all hook functions for boot process from following
+	# 2 sources:
+	#   - /opt/ys/etc/.yac
+	#   - /PROFILE/current/etc/.yac
+	#
+	INFO "mount_hooks"
+	load_hooks
 
 	# Initiate extra ethernet interfaces.
 	#
