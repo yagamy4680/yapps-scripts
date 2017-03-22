@@ -317,6 +317,7 @@ function update_system_id {
 	INFO "METADATA: BOARD_PROFILE         = $(YELLOW ${BOARD_PROFILE})"
 	INFO "METADATA: BOARD_PROFILE_VERSION = $(YELLOW ${BOARD_PROFILE_VERSION})"
 	hostname ${BOARD_UNIQUE_ID}
+	echo -n ${BOARD_UNIQUE_ID} > /etc/hostname
 	sed -i "s/^127\.0\.1\.1.*/127\.0\.1\.1\t$(hostname)\ $(hostname).localdomain/g" /etc/hosts
 }
 
