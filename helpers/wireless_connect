@@ -69,7 +69,7 @@ function connect_to_ap_with_conf {
 	INFO "${WIRELESS_IF} connecting to wireless router with config $(BLUE ${CONFIG}):"
 	cat ${CONFIG}
 
-	[ "" == "${WIFI_LOGFILE}" ] && WIFI_LOGFILE="/tmp/wireless-`date +%Y%m%d%H%M%S`-$1.log"
+	[ "" == "${WIFI_LOGFILE}" ] && WIFI_LOGFILE="/tmp/wireless-`date +%Y%m%d%H%M%S`-$(basename $1).log"
 
 	local DRIVER="$(cat ${CONFIG} | grep "^##DRIVER" | head -n1 | awk -F':' '{print $2}' | sed 's/\ //g')"
 	[ "" == "${DRIVER}" ] && DRIVER="wext"
@@ -112,5 +112,69 @@ function connect_to_ap_with_conf {
 
 	INFO "${WIRELESS_IF} restart bonjour service ..."
 	service avahi-daemon restart > /dev/null 2>&1
+	return 0
+}
+
+
+function indicate_progress {
+	stdbuf -oL echo -e "|\t0000\tdata\t$@"
+}
+
+
+function show_error {
+	echo $@ >&2
+}
+
+
+function connect_to_ap_with_conf_programmable {
+	local CONFIG=$1
+	local TIMEOUT=$2
+	[ "" == "${CONFIG}" ] && show_error "missing configuration file" && exit 10
+	[ "" == "${TIMEOUT}" ] && TIMEOUT="20"
+
+	local DRIVER="$(cat ${CONFIG} | grep "^##DRIVER" | head -n1 | awk -F':' '{print $2}' | sed 's/\ //g')"
+	[ "" == "${DRIVER}" ] && DRIVER="wext"
+
+	indicate_progress "cleanup"
+	ps aux | grep wpa_supplicant | grep ${WIRELESS_IF} | awk '{print $2}' | xargs -I{} sh -c "kill -9 {}"
+	while [ "" != "$(ps aux | grep wpa_supplicant | grep ${WIRELESS_IF})" ]; do
+		sleep 1
+		indicate_progress "wait_wpa_down"
+	done
+	ps aux | grep dhclient | grep ${WIRELESS_IF} | awk '{print $2}' | xargs -I{} sh -c "kill -9 {}"
+	while [ "" != "$(ps aux | grep dhclient | grep ${WIRELESS_IF})" ]; do
+		sleep 1
+		indicate_progress "wait_dhcp_down"
+	done
+
+	indicate_progress "gen_secret"
+	nice -n -5 wpa_supplicant -t -dd -D${DRIVER} -i ${WIRELESS_IF} -c${CONFIG} -f/tmp/wireless.log -B > /dev/null 2>&1
+
+	local TIMES=0
+	while [ "" != "$(iwconfig ${WIRELESS_IF} | head -n1 | grep 'unassociated')" ]; do
+		sleep 1
+		TIMES=$(($TIMES+1))
+		if [ "${TIMES}" -gt ${TIMEOUT} ]; then
+			show_err "handshake timeout, more than ${TIMEOUT} seconds"
+			exit 12
+		fi
+		indicate_progress "handshake:${TIMES}"
+	done
+
+	while [ "" == "$(ifconfig ${WIRELESS_IF} | grep 'BROADCAST' | grep 'RUNNING')" ]; do
+		sleep 1
+		TIMES=$(($TIMES+1))
+		if [ "${TIMES}" -gt ${TIMEOUT} ]; then
+			show_err "authentication timeout, more than ${TIMEOUT} seconds"
+			exit 13
+		fi
+		indicate_progress "auth:${TIMES}"
+	done
+
+	indicate_progress "renew_dhcp"
+	dhclient ${WIRELESS_IF}
+
+	local IP_ADDR=$(ifconfig ${WIRELESS_IF} | grep "inet addr" | awk '{print $2}' | sed 's/addr://g')
+	indicate_progress "done:${IP_ADDR}"
 	return 0
 }

@@ -1,0 +1,149 @@
+#!/bin/bash
+#
+##DOC:	control network interfaces
+
+function GREEN {
+	COLOR='\033[0;32m'
+	NC='\033[0m'
+	echo "${COLOR}$@${NC}"
+}
+
+
+function print_help {
+IFS='' read -r -d '' HELPS <<__EOF__
+yac net [command] [parameter1, parameter2, ...]
+
+Manipulate network adapters for connecting to Internet, change routing table,
+test Internet connectivity, and so on.
+
+Here are supported subcommands:
+
+Configure ethernet adapter to connect to Internet:
+	yac net $(YELLOW connect) $(PURPLE ethernet) $(BLUE static) $(LIGHT_GREEN [IPV4_ADDRESS]) $(LIGHT_GREEN [SUBNET_MASK]) $(LIGHT_GREEN [GATEWAY_ADDRESS]) $(GRAY [DNS])
+	yac net $(YELLOW connect) $(PURPLE ethernet) $(BLUE dhcp)
+
+	First command is to configure first one of available eth[x] interfaces to 
+	connect to Internet with static IP settings, for example:
+		yac net connect ethernet static $(GREEN 192.168.1.100) $(GREEN 255.255.255.0) $(GREEN 192.168.1.1) $(GREEN 168.95.1.1)
+		yac net connect ethernet static $(GREEN 192.168.1.100) $(GREEN 255.255.255.0) $(GREEN 192.168.1.1) $(GRAY "# default DNS is set to 8.8.8.8")
+
+	Second command is to configure first one of available wlan[x] interfaces to
+	connect to Internet with DHCP settings.
+
+	If there are more than one ethernet interface, and you'd like to configure
+	one designated interface, please specify environment variable ADAPTER. For
+	example:
+		ADAPTER=eth1 yac net connect ethernet static $(GREEN 192.168.1.100) $(GREEN 255.255.255.0) $(GREEN 192.168.1.1)
+		ADAPTER=eth2 yac net connect ethernet dhcp
+
+Configure wireless adapter to connect to Internet:
+	yac net $(YELLOW connect) $(PURPLE wireless) $(BLUE wpa_eap_peap0) $(LIGHT_GREEN [SSID]) $(LIGHT_GREEN [IDENTITY]) $(LIGHT_GREEN [PASSWORD])
+	yac net $(YELLOW connect) $(PURPLE wireless) $(BLUE wpa_psk) $(LIGHT_GREEN [SSID]) $(LIGHT_GREEN [PASSWORD])
+	yac net $(YELLOW connect) $(PURPLE wireless) $(BLUE wep) $(LIGHT_GREEN [SSID]) $(LIGHT_GREEN [WEP_KEY0])
+	yac net $(YELLOW connect) $(PURPLE wireless) $(BLUE insecure) $(LIGHT_GREEN [SSID])
+	yac net $(YELLOW connect) $(PURPLE wireless) $(BLUE conf) $(LIGHT_GREEN [WPA_CONF_FILE])
+__EOF__
+echo -en "${HELPS}"
+}
+
+
+function check_adapter {
+	[ "" == "${ADAPTER}" ] && return
+	[ "" == "$(ifconfig ${ADAPTER} 2>/dev/null)" ] && ERR "no such adapter: ${ADAPTER}" && exit 2
+}
+
+
+function net_connect_wireless {
+	local CONFIG_TYPE=$1
+	shift
+
+	local CONF_FILE="/tmp/wpa.conf"
+	[ "" == "${CONFIG_TYPE}" ] && ERR "missing config type" && exit 10
+	[ "" == "${ADAPTER}" ] && local ADAPTER=$(ifconfig -a | grep "^wlan" | awk '{print $1}' | sort | head -n1)
+	[ "" == "${ADAPTER}" ] && ERR "no available wireless adapter" && exit 11
+	[ "" == "${WPA_DRIVER}" ] && export WPA_DRIVER="wext"
+
+	case "${CONFIG_TYPE}" in
+		conf)
+			CONF_FILE=$1
+			[ ! -f "${CONF_FILE}" ] && ERR "missing wpa configuration file" && exit 12
+			;;
+		*)
+			local CONF_GENERATOR="${YAC_LIB_DIR}/wireless/wireless_conf_${CONFIG_TYPE}.sh"
+			[ ! -f "${CONF_GENERATOR}" ] && ERR "unsupported configuration type: ${CONFIG_TYPE}" && exit 13
+			${BASH} ${CONF_GENERATOR} $@ > ${CONF_FILE}
+			[ "0" != "$?" ] && exit 14
+			;;
+	esac
+
+	source ${YAC_LIB_DIR}/wireless_connect
+	[ "true" == "${PROGRAMMABLE}" ] && local CONNECT_TO_AP="connect_to_ap_with_conf_programmable" || local CONNECT_TO_AP="connect_to_ap_with_conf"
+
+	WIRELESS_IF=${ADAPTER} ${CONNECT_TO_AP} ${CONF_FILE}
+	if [ "0" == "$?" ] && [ "true" == "${USE_FOR_BOOT}" ]; then
+		local BOOT_WPA_CONF="${YS_DIR}/profiles/${BOARD_PROFILE}/wpa.config"
+		mkdir -p $(dirname ${BOOT_WPA_CONF})
+		rm -f ${BOOT_WPA_CONF}
+		cp ${CONF_FILE} ${BOOT_WPA_CONF}
+	fi
+}
+
+
+function net_connect_ethernet {
+	# [todo] implement it...
+	INFO "unsupported yet: $@ ${PARAMETERS}"
+}
+
+
+function net_connect {
+	local ADAPTER_TYPE=$1
+	shift
+	case "${ADAPTER_TYPE}" in
+		ethernet)
+			check_adapter
+			net_connect_${ADAPTER_TYPE} $@
+			;;
+		wireless)
+			check_adapter
+			net_connect_${ADAPTER_TYPE} $@
+			;;
+		*)
+			INFO "unsupported adapter type: ${ADAPTER_TYPE}"
+			;;
+	esac
+}
+
+function net_test {
+	INFO "unsupported yet: $@ ${PARAMETERS}"
+}
+
+
+function net_priority {
+	INFO "unsupported yet: $@ ${PARAMETERS}"
+}
+
+
+function yac_main {
+	export PARAMETERS=$@
+	local COMMAND=$1
+	shift
+	[ "" == "${COMMAND}" ] && print_help && exit 0
+	[ "-h" == "${COMMAND}" ] && print_help && exit 0
+
+	case "${COMMAND}" in
+		connect)
+			net_${COMMAND} $@
+			;;
+		test)
+			net_${COMMAND} $@
+			;;
+		priority)
+			net_${COMMAND} $@
+			;;
+		*)
+			INFO "no such subcommand: ${COMMAND}"
+			print_help
+			exit 1
+			;;
+	esac
+}
