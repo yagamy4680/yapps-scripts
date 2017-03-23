@@ -77,6 +77,127 @@ After init process, the crontab task is registered as below, that means the task
 ```
 
 
+## System Boot Hooks
+
+`yac boot` in system init process allows user to add their hook functions for different purposes. Here are some examples:
+
+- Adjust CPU frequency scaling for performance consideration or powersaving
+- Use GPIO to inform peripherals connected to this board, such as start power supply, reset MCU on one peripheral, ...
+- Manipulate external peripherals to indicate the progress of boot process (E.g. 8x8 LED Matrix)
+
+`yac boot` shall load hook functions from following 2 places, and call their different hook entry functions when boot stage is met:
+
+| Priority | Type | Path | Entry Function | Purposes |
+|---|---|---|---|---|
+| 1 | System Board | `${YS_DIR}/etc/.yac` (`/opt/ys/etc/.yac`) | `yac_board_hook` | Board-specific hook functions, typically added when building OS base image |
+| 2 | Profile | `${PROFILE}/current/etc/.yac` | `yac_hook` | Profile-specific hook functions |
+
+Here is an example of system board's hook scripts to boot process:
+
+```bash
+#!/bin/bash
+#
+
+function disable_cpu_powersaving {
+  # Ensure the CPU always run at maximum performance.
+  # refer to https://wiki.archlinux.org/index.php/CPU_frequency_scaling
+  # - performance
+  # - powersave
+  # - userspace
+  # - ondemand
+  # - conservative
+  # - schedutil
+  #
+  local GOVERNOR="performance"
+  for CPUFREQ in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor ; do
+    [ -f ${CPUFREQ} ] || continue
+    run_cmd_inside_hook "echo -n ${GOVERNOR} > ${CPUFREQ}"
+  done
+}
+
+function run_helper_func {
+  local NAME=$1
+  export HOOK_INNER_FUNC=${NAME}
+  $@
+  unset HOOK_INNER_FUNC
+}
+
+function yac_board_hook_boot {
+  export HOOK_STAGE=$1
+  shift
+  case "${HOOK_STAGE}" in
+    begin)
+      run_helper_func "disable_cpu_powersaving"
+      ;;
+    update_system_id)
+      ;;
+    run_time_daemon_and_restore)
+      ;;
+    bootup_wireless_adapter)
+      ;;
+    wireless)
+      local WIRELESS_CONNECTED=$1
+      local WIRELESS_CONNECTIVITY=$2
+      ;;
+    generate_sys_info_and_notify_cloud)
+      ;;
+    synchronize_time)
+      ;;
+    load_crontab_tasks)
+      ;;
+    init)
+      local SCRIPT_NAME=$1
+      local SCRIPT_ACTION=$2   # either `begin` or `end`
+      ;;
+    *)
+      ;;
+  esac
+  unset HOOK_STAGE
+}
+
+function yac_board_hook {
+  local ACTION=$1
+  shift
+  export HOOK_NAME="board"
+  case "${ACTION}" in
+    boot)
+      yac_board_hook_boot $@
+      ;;
+
+    *)
+      ;;
+  esac
+  unset HOOK_NAME
+}
+```
+
+From above example, the hook function tries to force CPU to run in maximum performance at the beginning of boot process (after `/etc/rc.local`). The output from `/dev/ttyS0` shall look like this:
+
+```text
+03/22 19:16:22 yac_boot MSG: source /opt/ys/etc/.yac
+03/22 19:16:22 yac_boot MSG: source /dhvac/current/etc/.yac
+03/22 19:16:22 yac_boot MSG: initiate_extra_ethernet_interfaces
+03/22 19:16:22 yac_boot MSG: [hook] board/begin/disable_cpu_powersaving => echo -n performance > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+```
+
+
+And, here are explanations of each stage (in order) and their parameters:
+
+| Stage | Parameter1 | Parameter2 | Description |
+|---|---|---|---|
+| `begin` | N/A | N/A | After partitions other than boot are mounted and configurations are merged, then this event is triggered. |
+| `update_system_id` | `BOARD_UNIQUE_ID` | N/A | After this stage, the global variable `BOARD_UNIQUE_ID` is initiated |
+| `run_time_daemon_and_restore` | N/A | N/A | Before restoring timestamp from local filesystem |
+| `bootup_wireless_adapter` | N/A | N/A | Before booting wireless adapter/interface to connect to Internet |
+| `wireless` | `WIRELESS_CONNECTED` | `WIRELESS_CONNECTIVITY` | After connecting to wireless network (might be successful or failed) |
+| `generate_sys_info_and_notify_cloud` | N/A | N/A | Before notifying the system data to cloud |
+| `synchronize_time` | N/A | N/A | Before synchronizing time from different sources, such as RTC or NTP |
+| `load_crontab_tasks` | N/A | N/A | Before loading crontab tasks |
+| `init` | `SCRIPT_NAME` | `SCRIPT_ACTION` | Before/After running each init script inside profile archive, e.g. 1st parameter might be `10_peripherals`, `20_tcp_proxy`, or else. The 2nd parameter shall be one of `begin` and `end` |
+
+
+
+
 
 
 
