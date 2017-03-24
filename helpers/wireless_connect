@@ -108,7 +108,12 @@ function connect_to_ap_with_conf {
 	[ "" == "${WAITING_TIME_LOGFILE}" ] || echo $times > ${WAITING_TIME_LOGFILE}
 
 	INFO "${WIRELESS_IF} renew dhcp settings ..."
-	dhclient ${WIRELESS_IF}
+	local LEASE_FILE="/var/lib/dhcp/dhclient.${WIRELESS_IF}.leases"
+	local PID_FILE="/run/dhclient.${WIRELESS_IF}.pid"
+	rm -f ${LEASE_FILE}
+	COMMAND="dhclient -pf ${PID_FILE} -lf ${LEASE_FILE} ${WIRELESS_IF}"
+	INFO "$(LIGHT_GREEN ${COMMAND})"
+	${COMMAND}
 
 	INFO "${WIRELESS_IF} restart bonjour service ..."
 	service avahi-daemon restart > /dev/null 2>&1
@@ -172,7 +177,10 @@ function connect_to_ap_with_conf_programmable {
 	done
 
 	indicate_progress "renew_dhcp"
-	dhclient ${WIRELESS_IF}
+	local LEASE_FILE="/var/lib/dhcp/dhclient.${WIRELESS_IF}.leases"
+	local PID_FILE="/run/dhclient.${WIRELESS_IF}.pid"
+	rm -f ${LEASE_FILE}
+	dhclient -pf ${PID_FILE} -lf ${LEASE_FILE} ${WIRELESS_IF}
 
 	local IP_ADDR=$(ifconfig ${WIRELESS_IF} | grep "inet addr" | awk '{print $2}' | sed 's/addr://g')
 	indicate_progress "done:${IP_ADDR}"
