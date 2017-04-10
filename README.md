@@ -1,5 +1,6 @@
 # yapps-scripts
-Yapps Scripts
+
+Yapps CLI framework for Embedded Linux, including boot init process and runtime app management.
 
 ## System Configuration
 
