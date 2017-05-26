@@ -72,7 +72,11 @@ function connect_to_ap_with_conf {
 	[ "" == "${WIFI_LOGFILE}" ] && WIFI_LOGFILE="/tmp/wireless-`date +%Y%m%d%H%M%S`-$(basename $1).log"
 
 	local DRIVER="$(cat ${CONFIG} | grep "^##DRIVER" | head -n1 | awk -F':' '{print $2}' | sed 's/\ //g')"
+	local AUTH_TIMEOUT="$(cat ${CONFIG} | grep "^##AUTH_TIMEOUT" | head -n1 | awk -F':' '{print $2}' | sed 's/\ //g')"
 	[ "" == "${DRIVER}" ] && DRIVER="wext"
+	[ "" == "${AUTH_TIMEOUT}" ] && AUTH_TIMEOUT="20"
+	INFO "DRIVER       => $(YELLOW ${DRIVER})"
+	INFO "AUTH_TIMEOUT => $(YELLOW ${AUTH_TIMEOUT})"
 
 	local COMMAND="wpa_supplicant -dd -t -D${DRIVER} -i ${WIRELESS_IF} -c${CONFIG} -f${WIFI_LOGFILE} -B"
 	INFO "$(LIGHT_GREEN ${COMMAND})"
@@ -85,24 +89,24 @@ function connect_to_ap_with_conf {
 	do
 		sleep 1
 		times=$(($times+1))
-		if [ "$times" -gt 20 ];
+		if [ "$times" -gt "${AUTH_TIMEOUT}" ];
 		then
 			INFO "${WIRELESS_IF} handshake timeout, more than 20 seconds, return 1"
 			return 1
 		fi
-		INFO "${WIRELESS_IF} waiting for wifi handshake with WPA-CONF: $(BLUE ${CONFIG}) ..."
+		INFO "${WIRELESS_IF} waiting for wifi handshake with WPA-CONF: $(BLUE ${CONFIG}) ... (${times}/${AUTH_TIMEOUT})"
 	done
 
 	while [ "" == "$(ifconfig ${WIRELESS_IF} | grep 'BROADCAST' | grep 'RUNNING')" ]
 	do
 		sleep 1
 		times=$(($times+1))
-		if [ "$times" -gt 20 ];
+		if [ "$times" -gt "${AUTH_TIMEOUT}" ];
 		then
 			INFO "${WIRELESS_IF} authentication timeout, more than 20 seconds, return 2"
 			return 2
 		fi
-		INFO "${WIRELESS_IF} waiting for wifi authentication with WPA-CONF: $(BLUE ${CONFIG}) ..."
+		INFO "${WIRELESS_IF} waiting for wifi authentication with WPA-CONF: $(BLUE ${CONFIG}) ...(${times}/${AUTH_TIMEOUT})"
 	done
 
 	[ "" == "${WAITING_TIME_LOGFILE}" ] || echo $times > ${WAITING_TIME_LOGFILE}

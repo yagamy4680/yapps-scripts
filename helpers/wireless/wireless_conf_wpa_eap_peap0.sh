@@ -9,10 +9,12 @@
 [ "" == "${PASSWORD}" ] && exit 3
 
 [ "" == "${WPA_DRIVER}" ] && WPA_DRIVER="wext"
+[ "" == "${WPA_AUTH_TIMEOUT}" ] && WPA_AUTH_TIMEOUT="120"
 
 cat <<__EOF__
 #
 ##DRIVER: ${WPA_DRIVER}
+##AUTH_TIMEOUT: ${WPA_AUTH_TIMEOUT}
 #
 network={
 	auth_alg=OPEN
