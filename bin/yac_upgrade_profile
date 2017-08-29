@@ -70,29 +70,41 @@ function download_and_extract {
 	RUN_CMD tar xvf ${ARCHIVE_FILE} -C ${TARGET_DIR}
 	rm -f ${ARCHIVE_FILE}
 	rm -f ${ARCHIVES}
-	INFO "update /mnt/app/profiles/${BOARD_PROFILE}/entry with $(YELLOW ${ARCHIVE_NAME})"
-	echo "${ARCHIVE_NAME}" > /mnt/app/profiles/${BOARD_PROFILE}/entry
-	INFO "switch /mnt/app/profiles/${BOARD_PROFILE}/env to $(YELLOW ${PROFILE_ENV})"
-	echo "${PROFILE_ENV}" > /mnt/app/profiles/${BOARD_PROFILE}/env
 
 	local MODULE_CONF="/mnt/app/profiles/${BOARD_PROFILE}/${ARCHIVE_NAME}/apps/packages.conf"
 	local MODULE_DIR="/mnt/app/profiles/${BOARD_PROFILE}/${ARCHIVE_NAME}/runtimes/nodejs/${NODEJS_VERSION}"
 	source "$(dirname $0)/../externals/bash-utils/system"
 	initiate_linux_os_variables
+
+	if [ "" == "${EXTRA_ARCHIVE_URL}" ]; then
+		local ARCHIVE_SERVER_URL="${CLOUD_ARCHIVE_URL}"
+	else
+		local ARCHIVE_SERVER_URL="${EXTRA_ARCHIVE_URL}"
+	fi
+
 	if download_nodejs_modules \
 		${NODEJS_VERSION} \
 		${OS_NAME} \
 		${OS_ARCH} \
 		${MODULE_DIR} \
 		${MODULE_CONF} \
-		${CLOUD_ARCHIVE_URL} ; then
+		${ARCHIVE_SERVER_URL} ; then
 		INFO "successfully install nodejs module"
-	else
-		local MODULES=$(cat ${MODULE_CONF} | tr '\t' '@' | tr '\n' ' ')
-		local CURRENT=$(pwd)
-		local CMD="${RUNTIME_NODEJS_DIR}/bin/node ${RUNTIME_NODEJS_DIR}/bin/npm install ${MODULES}"
-		cd ${MODULE_DIR} && INFO "install command: $(YELLOW ${CMD})" && ${CMD}
+		INFO "update /mnt/app/profiles/${BOARD_PROFILE}/entry with $(YELLOW ${ARCHIVE_NAME})"
+		echo "${ARCHIVE_NAME}" > /mnt/app/profiles/${BOARD_PROFILE}/entry
+		INFO "switch /mnt/app/profiles/${BOARD_PROFILE}/env to $(YELLOW ${PROFILE_ENV})"
+		echo "${PROFILE_ENV}" > /mnt/app/profiles/${BOARD_PROFILE}/env
 		cd ${CURRENT}
+		return 0
+	else
+		local EXIT_CODE=$?
+		# local MODULES=$(cat ${MODULE_CONF} | tr '\t' '@' | tr '\n' ' ')
+		# local CURRENT=$(pwd)
+		# local CMD="${RUNTIME_NODEJS_DIR}/bin/node ${RUNTIME_NODEJS_DIR}/bin/npm install ${MODULES}"
+		# EXIT_CODE=$?
+		# cd ${MODULE_DIR} && INFO "install command: $(YELLOW ${CMD})" && ${CMD}
+		# cd ${CURRENT}
+		return ${EXIT_CODE}
 	fi
 }
 
