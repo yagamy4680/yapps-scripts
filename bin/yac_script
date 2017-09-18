@@ -16,7 +16,6 @@ function yac_main {
 	[ "0" == "${EXIT_CODE}" ] || exit 240
 	function_exist ${SCRIPT_MAIN} || exit 241
 	${SCRIPT_MAIN} $@; EXIT_CODE=$?
-	[ "0" == "${EXIT_CODE}" ] && return 0
-	INFO "exit from ${SCRIPT_MAIN} with non-zero value (${EXIT_CODE})"
-	return 242
+	INFO "yac_main(): exit => ${EXIT_CODE}"
+	return ${EXIT_CODE}
 }
