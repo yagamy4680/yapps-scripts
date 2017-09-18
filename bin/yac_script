@@ -4,13 +4,19 @@
 
 function yac_main {
 	local TMP=$(mktemp /tmp/XXXXXX)
+	local EXIT_CODE="0"
+	local SCRIPT_MAIN="yac_script_main"
 	
 	echo "#!/bin/bash" > ${TMP}
 	while read LINE; do
 		echo "${LINE}" >> ${TMP}
 	done
 
-	source ${TMP}
-	call_func "yac_script_main" $@
-	rm -f ${TMP}
+	source ${TMP}; EXIT_CODE=$?; rm -f ${TMP}
+	[ "0" == "${EXIT_CODE}" ] || exit 240
+	function_exist ${SCRIPT_MAIN} || exit 241
+	${SCRIPT_MAIN} $@; EXIT_CODE=$?
+	[ "0" == "${EXIT_CODE}" ] && return 0
+	INFO "exit from ${SCRIPT_MAIN} with non-zero value (${EXIT_CODE})"
+	return 242
 }
