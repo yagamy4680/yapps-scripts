@@ -8,9 +8,11 @@ function yac_main {
 	local SCRIPT_MAIN="yac_script_main"
 	
 	echo "#!/bin/bash" > ${TMP}
+	IFS=
 	while read LINE; do
 		echo "${LINE}" >> ${TMP}
 	done
+	unset IFS
 
 	source ${TMP}; EXIT_CODE=$?; rm -f ${TMP}
 	[ "0" == "${EXIT_CODE}" ] || exit 240
