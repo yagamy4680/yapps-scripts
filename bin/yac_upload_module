@@ -5,7 +5,7 @@
 function upload_nodejs_module {
 	[ "" == "${UUID}" ] && UUID=$(dbus-uuidgen)
 	[ "" == "${UUID}" ] && UUID="$(cat /proc/sys/kernel/random/uuid)"
-	ARCHIVE_SITE=$(basename ${CLOUD_ARCHIVE_URL})
+	[ "" == "${ARCHIVE_SITE}" ] && ARCHIVE_SITE=$(basename ${CLOUD_ARCHIVE_URL})
 	ARCHIVE="/tmp/${UUID}.tar.gz"
 	cd ${NODEJS_MODULE_DIR}
 	UPLOAD_DIR="/embedded-linux/nodejs-modules/${OS_NAME}/${OS_ARCH}/${NODEJS_VERSION}"
