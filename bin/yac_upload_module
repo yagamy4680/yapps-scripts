@@ -57,13 +57,13 @@ yac upload_module [USER] [PASSWORD]
 E.g.
 	yac upload_module ya-agent AABBCC
 
-	UPLOAD_URL_ENTRY=https://files.t2t.io UPLOAD_SITE=archives.t2t.io yac upload_module ya-agent AABBCC
+	UPLOAD_URL_ENTRY=https://fc.t2t.io ARCHIVE_SITE=archives.t2t.io yac upload_module ya-agent AABBCC
 __EOF__
 }
 
 
 function yac_main {
-	[ "" == "${UPLOAD_URL_ENTRY}" ] && export UPLOAD_URL_ENTRY="https://files.t2t.io"
+	[ "" == "${UPLOAD_URL_ENTRY}" ] && export UPLOAD_URL_ENTRY="https://fc.t2t.io"
 	export UPLOAD_USER=$1
 	export UPLOAD_PASS=$2
 
