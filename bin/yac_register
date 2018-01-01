@@ -1,0 +1,69 @@
+#!/bin/bash
+#
+##DOC:	register an identity from TIC DM (device-management) server with `create-dev-node` api
+
+
+function register_dev_node {
+	local BOARD_SERIAL_NUMBER=$(cat /tmp/ttt_system | grep "^sn" | awk '{print $2}')
+	local BOARD_UNIQUE_IDENTITY=$(cat /tmp/ttt_system | grep "^id" | awk '{print $2}')
+	local MACADDR_ETH=$(ifconfig | grep HWaddr | grep "^eth" | awk '{print $5}')
+	local MACADDR_USB=$(ifconfig | grep HWaddr | grep "^usb" | awk '{print $5}')
+	local MACADDR_WLAN=$(ifconfig | grep HWaddr | grep "^wlan" | awk '{print $5}')
+	local SERVER=$1
+	[ "" == "${MACADDR_ETH}" ] && MACADDR_ETH="00:00:00:00:00:00"
+	[ "" == "${MACADDR_USB}" ] && MACADDR_USB="00:00:00:00:00:00"
+	[ "" == "${MACADDR_WLAN}" ] && MACADDR_WLAN="00:00:00:00:00:00"
+	[ "" == "${SERVER}" ] && SERVER="https://tic-dm.t2t.io"
+
+	local TMP=$(mktemp /tmp/XXXXXX)
+
+	INFO "BOARD_PROFILE = ${BOARD_PROFILE}"
+	# INFO "FILE_USER = ${CLOUD_FILE_USER}"
+	# INFO "FILE_PSWD = ${CLOUD_FILE_PSWD}"
+	INFO "BOARD_SERIAL_NUMBER = ${BOARD_SERIAL_NUMBER}"
+	INFO "BOARD = ${BOARD}"
+	INFO "BOARD_BASE_VERSION = ${BOARD_BASE_VERSION}"
+	INFO "MACADDR_ETH = ${MACADDR_ETH}"
+	INFO "MACADDR_USB = ${MACADDR_USB}"
+	INFO "MACADDR_WLAN = ${MACADDR_WLAN}"
+
+	http \
+		--check-status \
+		--ignore-stdin \
+		-a ${BOARD_PROFILE}-${CLOUD_FILE_USER}:${CLOUD_FILE_PSWD} \
+		${SERVER}/api/v3/nodes/${BOARD_PROFILE}/create-dev-node/${BOARD_SERIAL_NUMBER} \
+			device=${BOARD} \
+			version=${BOARD_BASE_VERSION} \
+			macaddr_eth=${MACADDR_ETH} \
+			macaddr_usb=${MACADDR_USB} \
+			macaddr_wlan=${MACADDR_WLAN} \
+			> ${TMP}
+	local EXIT_CODE=$?
+	[ "0" != "${EXIT_CODE}" ] && ERR "failed to register" && cat ${TMP} && rm -f ${TMP} && exit 1
+
+	local IDENTITY=$(cat ${TMP} | jq .data.identity | sed 's/\"//g')
+	local NUMBER=$(cat ${TMP} | jq .data.sequence_number | sed 's/\"//g')
+	local TOKEN=$(cat ${TMP} | jq .data.token | sed 's/\"//g')
+	rm -f ${TMP}
+
+	INFO "identity => $(LIGHT_GREEN ${IDENTITY})"
+	INFO "token => $(YELLOW ${TOKEN})"
+
+	local YAC_ID_FILE="/mnt/emmc/yac.id"
+	local YAC_TOKEN_FILE="/mnt/emmc/yac.token"
+	INFO "generating ${YAC_ID_FILE} ..."
+	echo ${IDENTITY} > ${YAC_ID_FILE}
+	INFO "generating ${YAC_TOKEN_FILE} ..."
+	echo ${TOKEN} > ${YAC_TOKEN_FILE}
+	INFO "rebooting ..."
+	reboot
+}
+
+
+function yac_main {
+	NAME=$1
+	INFO "NAME => ${NAME}"
+	shift
+	[ "" == "${NAME}" ] && INFO "please specify name" && exit 1
+	register_${NAME}_node $@
+}

@@ -209,6 +209,7 @@ function generate_ttt_system {
 cat << __EOF__ > /tmp/ttt_system
 id	${BOARD_UNIQUE_ID}
 sn	${BOARD_SERIAL_NUMBER}
+token	${BOARD_TOKEN}
 alias	${BOARD_NAME}
 base_version	${BOARD_BASE_VERSION}
 profile	${BOARD_PROFILE}
@@ -236,21 +237,24 @@ chmod +x $2
 }
 
 
-# Generate 2 variables, and export them:
+# Generate 3 variables, and export them:
 #    - BOARD_SERIAL_NUMBER    (e.g. `bbg-BBG115081198`)
 #    - BOARD_UNIQUE_ID        (e.g. `F99900011`)
+#    - BOARD_TOKEN            (e.g. `7MQNU2CJLFR`) 
 #
 function generate_id {
 	local BEAGLEBONE_ID=$(read_bbb_id)
 	local RPI_ID=$(read_rpi2_id)
 	local YAC_BSN_FILE="/yac.bsn"
 	local YAC_ID_FILE="/yac.id"
+	local YAC_TOKEN_FILE="/yac.token"
 
 	if [ "" != ${BEAGLEBONE_ID} ]; then
 		# It's BeagleBone-Black series: BBB/BBG/BBG-Wirelss/IPCS
 		#
 		export BOARD_SERIAL_NUMBER=${BEAGLEBONE_ID}
 		export BOARD_UNIQUE_ID=${BEAGLEBONE_ID}
+		export BOARD_TOKEN="000000000000"
 
 		[ "" == "$(echo ${BOARD_SERIAL_NUMBER} | grep "^bb.-")" ] || BOARD_SERIAL_NUMBER=$(echo ${BOARD_SERIAL_NUMBER} | sed 's/^bb.\-//g')
 
@@ -285,6 +289,7 @@ function generate_id {
 			mount -t ext4 ${EMMC_ROOT_PARTITION} ${EMMC_DIRECTORY} 2>&1 > /dev/null
 			[ -f "${EMMC_DIRECTORY}${YAC_BSN_FILE}" ] && BOARD_SERIAL_NUMBER=$(cat "${EMMC_DIRECTORY}${YAC_BSN_FILE}")
 			[ -f "${EMMC_DIRECTORY}${YAC_ID_FILE}" ]  && BOARD_UNIQUE_ID=$(cat "${EMMC_DIRECTORY}${YAC_ID_FILE}")
+			[ -f "${EMMC_DIRECTORY}${YAC_TOKEN_FILE}" ]  && BOARD_TOKEN=$(cat "${EMMC_DIRECTORY}${YAC_TOKEN_FILE}")
 			[ -f "${EMMC_DIRECTORY}/boot/uEnv.txt" ] && INFO "eMMC kernel: $(YELLOW $(cat ${EMMC_DIRECTORY}/boot/uEnv.txt  | grep "^uname_r" | awk -F'=' '{print $2}'))"
 		else
 			# Booting from eMMC
