@@ -2,25 +2,18 @@
 #
 ##DOC:	register an identity from TIC DM (device-management) server with `create-dev-node` api
 
-
-function register_dev_node {
-	local BOARD_SERIAL_NUMBER=$(cat /tmp/ttt_system | grep "^sn" | awk '{print $2}')
-	local BOARD_UNIQUE_IDENTITY=$(cat /tmp/ttt_system | grep "^id" | awk '{print $2}')
-	[ "${BOARD_SERIAL_NUMBER}" != "${BOARD_UNIQUE_IDENTITY}" ] && INFO "already register unique id $(LIGHT_GREEN ${BOARD_UNIQUE_IDENTITY}) (serial_number: $(YELLOW ${BOARD_SERIAL_NUMBER})), then skip registration." && exit 1
-	local MACADDR_ETH=$(ifconfig | grep HWaddr | grep "^eth" | awk '{print $5}')
-	local MACADDR_USB=$(ifconfig | grep HWaddr | grep "^usb" | awk '{print $5}')
-	local MACADDR_WLAN=$(ifconfig | grep HWaddr | grep "^wlan" | awk '{print $5}')
-	local SERVER=$1
+function load_variables {
+	export BOARD_SERIAL_NUMBER=$(cat /tmp/ttt_system | grep "^sn" | awk '{print $2}')
+	export BOARD_UNIQUE_IDENTITY=$(cat /tmp/ttt_system | grep "^id" | awk '{print $2}')
+	export MACADDR_ETH=$(ifconfig | grep HWaddr | grep "^eth" | awk '{print $5}')
+	export MACADDR_USB=$(ifconfig | grep HWaddr | grep "^usb" | awk '{print $5}')
+	export MACADDR_WLAN=$(ifconfig | grep HWaddr | grep "^wlan" | awk '{print $5}')
 	[ "" == "${MACADDR_ETH}" ] && MACADDR_ETH="00:00:00:00:00:00"
 	[ "" == "${MACADDR_USB}" ] && MACADDR_USB="00:00:00:00:00:00"
 	[ "" == "${MACADDR_WLAN}" ] && MACADDR_WLAN="00:00:00:00:00:00"
-	[ "" == "${SERVER}" ] && SERVER="https://tic-dm.t2t.io"
-
-	local TMP=$(mktemp /tmp/XXXXXX)
 
 	INFO "BOARD_PROFILE = ${BOARD_PROFILE}"
 	INFO "FILE_USER = ${CLOUD_FILE_USER}"
-	# INFO "FILE_PSWD = ${CLOUD_FILE_PSWD}"
 	INFO "BOARD_SERIAL_NUMBER = ${BOARD_SERIAL_NUMBER}"
 	INFO "BOARD_UNIQUE_IDENTITY = ${BOARD_UNIQUE_IDENTITY}"
 	INFO "BOARD = ${BOARD}"
@@ -28,21 +21,10 @@ function register_dev_node {
 	INFO "MACADDR_ETH = ${MACADDR_ETH}"
 	INFO "MACADDR_USB = ${MACADDR_USB}"
 	INFO "MACADDR_WLAN = ${MACADDR_WLAN}"
+}
 
-	http \
-		--check-status \
-		--ignore-stdin \
-		-a ${BOARD_PROFILE}-${CLOUD_FILE_USER}:${CLOUD_FILE_PSWD} \
-		${SERVER}/api/v3/nodes/${BOARD_PROFILE}/create-dev-node/${BOARD_SERIAL_NUMBER} \
-			device=$(echo ${BOARD} | tr [a-z] [A-Z]) \
-			version=${BOARD_BASE_VERSION} \
-			macaddr_eth=${MACADDR_ETH} \
-			macaddr_usb=${MACADDR_USB} \
-			macaddr_wlan=${MACADDR_WLAN} \
-			> ${TMP}
-	local EXIT_CODE=$?
-	[ "0" != "${EXIT_CODE}" ] && ERR "failed to register" && cat ${TMP} && rm -f ${TMP} && exit 1
-
+function generate_yac_files_and_reboot {
+	local TMP=$1
 	local IDENTITY=$(cat ${TMP} | jq .data.identity | sed 's/\"//g')
 	local NUMBER=$(cat ${TMP} | jq .data.sequence_number | sed 's/\"//g')
 	local TOKEN=$(cat ${TMP} | jq .data.token | sed 's/\"//g')
@@ -59,6 +41,62 @@ function register_dev_node {
 	echo ${TOKEN} > ${YAC_TOKEN_FILE}
 	INFO "rebooting ..."
 	reboot
+}
+
+function register_production_node {
+	load_variables
+	[ "${BOARD_SERIAL_NUMBER}" != "${BOARD_UNIQUE_IDENTITY}" ] && [ "true" != "${FORCE}" ] && ERR "already register unique id $(LIGHT_GREEN ${BOARD_UNIQUE_IDENTITY}) (serial_number: $(YELLOW ${BOARD_SERIAL_NUMBER})), then skip registration." && exit 1
+	[ "" == "$(which avahi-browse)" ] && ERR "please install avahi-utils first" && exit 1
+
+	local PORT="7070"
+	INFO "looking for tic-dm-proxy server running at port ${PORT} in local network ..."
+	local IP=$(avahi-browse -d local _http._tcp -t -r -p | grep ";${PORT};$" | awk -F';' '{print $8}' | head -n1)
+	local EXIT_CODE=$?
+	[ "0" != "${EXIT_CODE}" ] && ERR "failed to lookup tic-dm-proxy server, err: ${EXIT_CODE}" && exit ${EXIT_CODE}
+	[ "" == "${IP}" ] && ERR "missing tic-dm-proxy server at local network" && exit 1
+
+	local TMP=$(mktemp /tmp/XXXXXX)
+	INFO "posting data to http://${IP}:${PORT}/api/v3/nodes/${BOARD_PROFILE}/create-production-node/${BOARD_SERIAL_NUMBER} ..."
+
+	http \
+		--check-status \
+		--ignore-stdin \
+		http://${IP}:${PORT}/api/v3/nodes/${BOARD_PROFILE}/create-production-node/${BOARD_SERIAL_NUMBER} \
+			device=$(echo ${BOARD} | tr [a-z] [A-Z]) \
+			version=${BOARD_BASE_VERSION} \
+			macaddr_eth=${MACADDR_ETH} \
+			macaddr_usb=${MACADDR_USB} \
+			macaddr_wlan=${MACADDR_WLAN} \
+			> ${TMP}
+	local EXIT_CODE=$?
+	[ "0" != "${EXIT_CODE}" ] && ERR "failed to register" && cat ${TMP} && rm -f ${TMP} && exit 1
+	generate_yac_files_and_reboot ${TMP}
+}
+
+
+function register_dev_node {
+	load_variables
+	[ "${BOARD_SERIAL_NUMBER}" != "${BOARD_UNIQUE_IDENTITY}" ] && [ "true" != "${FORCE}" ] && ERR "already register unique id $(LIGHT_GREEN ${BOARD_UNIQUE_IDENTITY}) (serial_number: $(YELLOW ${BOARD_SERIAL_NUMBER})), then skip registration." && exit 1
+	local SERVER=$1
+	[ "" == "${SERVER}" ] && SERVER="https://tic-dm.t2t.io"
+
+	local TMP=$(mktemp /tmp/XXXXXX)
+	INFO "posting data to ${SERVER}/api/v3/nodes/${BOARD_PROFILE}/create-dev-node/${BOARD_SERIAL_NUMBER} ..."
+
+	http \
+		--check-status \
+		--ignore-stdin \
+		-a ${BOARD_PROFILE}-${CLOUD_FILE_USER}:${CLOUD_FILE_PSWD} \
+		${SERVER}/api/v3/nodes/${BOARD_PROFILE}/create-dev-node/${BOARD_SERIAL_NUMBER} \
+			device=$(echo ${BOARD} | tr [a-z] [A-Z]) \
+			version=${BOARD_BASE_VERSION} \
+			macaddr_eth=${MACADDR_ETH} \
+			macaddr_usb=${MACADDR_USB} \
+			macaddr_wlan=${MACADDR_WLAN} \
+			> ${TMP}
+	local EXIT_CODE=$?
+	[ "0" != "${EXIT_CODE}" ] && ERR "failed to register" && cat ${TMP} && rm -f ${TMP} && exit 1
+	generate_yac_files_and_reboot ${TMP}
 }
 
 
