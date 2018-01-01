@@ -6,6 +6,7 @@
 function register_dev_node {
 	local BOARD_SERIAL_NUMBER=$(cat /tmp/ttt_system | grep "^sn" | awk '{print $2}')
 	local BOARD_UNIQUE_IDENTITY=$(cat /tmp/ttt_system | grep "^id" | awk '{print $2}')
+	[ "${BOARD_SERIAL_NUMBER}" != "${BOARD_UNIQUE_IDENTITY}" ] && INFO "already register unique id $(LIGHT_GREEN ${BOARD_UNIQUE_IDENTITY}) (serial_number: $(YELLOW ${BOARD_SERIAL_NUMBER})), then skip registration." && exit 1
 	local MACADDR_ETH=$(ifconfig | grep HWaddr | grep "^eth" | awk '{print $5}')
 	local MACADDR_USB=$(ifconfig | grep HWaddr | grep "^usb" | awk '{print $5}')
 	local MACADDR_WLAN=$(ifconfig | grep HWaddr | grep "^wlan" | awk '{print $5}')
@@ -18,9 +19,10 @@ function register_dev_node {
 	local TMP=$(mktemp /tmp/XXXXXX)
 
 	INFO "BOARD_PROFILE = ${BOARD_PROFILE}"
-	# INFO "FILE_USER = ${CLOUD_FILE_USER}"
+	INFO "FILE_USER = ${CLOUD_FILE_USER}"
 	# INFO "FILE_PSWD = ${CLOUD_FILE_PSWD}"
 	INFO "BOARD_SERIAL_NUMBER = ${BOARD_SERIAL_NUMBER}"
+	INFO "BOARD_UNIQUE_IDENTITY = ${BOARD_UNIQUE_IDENTITY}"
 	INFO "BOARD = ${BOARD}"
 	INFO "BOARD_BASE_VERSION = ${BOARD_BASE_VERSION}"
 	INFO "MACADDR_ETH = ${MACADDR_ETH}"
@@ -32,7 +34,7 @@ function register_dev_node {
 		--ignore-stdin \
 		-a ${BOARD_PROFILE}-${CLOUD_FILE_USER}:${CLOUD_FILE_PSWD} \
 		${SERVER}/api/v3/nodes/${BOARD_PROFILE}/create-dev-node/${BOARD_SERIAL_NUMBER} \
-			device=${BOARD} \
+			device=$(echo ${BOARD} | tr [a-z] [A-Z]) \
 			version=${BOARD_BASE_VERSION} \
 			macaddr_eth=${MACADDR_ETH} \
 			macaddr_usb=${MACADDR_USB} \
