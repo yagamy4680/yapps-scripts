@@ -49,6 +49,19 @@ function restore {
 	[ ! -f "${SOURCE_DIR}/partitions.sfdisk.dump" ] && ERR "invalid source directory (${SOURCE_DIR}): missing partitions.sfdisk.dump" && exit 1 
 	[ ! -d "${SOURCE_DIR}/p1" ] && ERR "invalid source directory (${SOURCE_DIR}): missing p1" && exit 1 
 
+	local UBOOT_SERVER="https://rcn-ee.com/repos/bootloader"
+	local UBOOT_BOARD="am335x_boneblack"
+	local UBOOT_BUILD_VERSION="v2018.01-r11"
+	local UBOOT_MLO="${UBOOT_SERVER}/${UBOOT_BOARD}/MLO-${UBOOT_BOARD}-${UBOOT_BUILD_VERSION}"
+	local UBOOT_IMG="${UBOOT_SERVER}/${UBOOT_BOARD}/u-boot-${UBOOT_BOARD}-${UBOOT_BUILD_VERSION}.img"
+	local UBOOT_MLO_FILE="/tmp/MLO"
+	local UBOOT_IMG_FILE="/tmp/u-boot.img"
+
+	wget -O ${UBOOT_MLO_FILE} ${UBOOT_MLO}
+	[ "0" != "$?" ] && ERR "failed to download $(basename ${UBOOT_MLO_FILE}) from ${UBOOT_MLO}" && exit 1
+	wget -O ${UBOOT_IMG_FILE} ${UBOOT_IMG}
+	[ "0" != "$?" ] && ERR "failed to download $(basename ${UBOOT_IMG_FILE}) from ${UBOOT_IMG}" && exit 1
+
 	INFO "Umount all partitions for $(LIGHT_GREEN ${DRIVE})"
 	mount | grep ${DRIVE} | awk '{print $1}' | xargs -I{} sh -c "umount {}"
 	sync
@@ -57,16 +70,14 @@ function restore {
 	RUN_CMD dd if=/dev/zero of=${DRIVE} bs=${MBR_SIZE} count=1
 	RUN_CMD sync
 
-	INFO "Copy MBR (MLO and U-Boot) to SD card"
-	RUN_CMD dd if=${SOURCE_DIR}/bootloader.img of=${DRIVE}
+	#INFO "Copy MBR (MLO and U-Boot) to SD card"
+	#RUN_CMD dd if=${SOURCE_DIR}/bootloader.img of=${DRIVE}
+	#RUN_CMD sync
+	INFO "Copy MBR (MLO and U-Boot) to SD card: version: $(LIGHT_GREEN ${UBOOT_BUILD_VERSION})"
+	RUN_CMD dd if=${UBOOT_MLO_FILE} of=${DRIVE} count=1 seek=1 conv=notrunc bs=128k
+	RUN_CMD dd if=${UBOOT_IMG_FILE} of=${DRIVE} count=2 seek=1 conv=notrunc bs=384k
 	RUN_CMD sync
 	
-	#INFO "Restore partition table"
-	#cat ${SOURCE_DIR}/partitions.sfdisk.dump | sfdisk ${DRIVE}
-	#RUN_CMD sleep 1
-	#RUN_CMD sync
-	#RUN_CMD sync
-	#RUN_CMD sleep 1
 	INFO "Re-partition ${DRIVE}"
 	RUN_CMD parted ${DRIVE} mklabel msdos
 	RUN_CMD parted ${DRIVE} mkpart primary ext4  0%  25%
@@ -98,6 +109,11 @@ function restore {
 			cd ${CURRENT}
 		else
 			INFO "missing ${SRC} to restore $(LIGHT_GREEN ${p})"
+		fi
+
+		if [ "1" == "${NUM}" ]; then
+			RUN_CMD "mv ${DIR}/uEnv.txt ${DIR}/uEnv.txt.bak"
+			RUN_CMD "mv ${DIR}/uEnv-emmc.txt ${DIR}/uEnv.txt"
 		fi
 
 		RUN_CMD umount ${p}
