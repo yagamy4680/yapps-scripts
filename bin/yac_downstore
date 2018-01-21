@@ -1,0 +1,149 @@
+#!/bin/bash
+#
+##DOC:	download latest base image, and flash to eMMC.
+
+function check_prerequisites {
+	local BOOT_PARTITION=$(mount | grep "on / type" | awk '{print $1}')
+	local DISKS=($(lsblk | grep disk | grep -v boot | awk '{print $1}'))
+
+	INFO "list all partitions ..."
+	blkid | awk '{printf "\t%s\n", $0}'
+
+	for d in "${DISKS[@]}"; do
+		if [ "" != "$(echo ${BOOT_PARTITION} | grep $d)" ]; then
+			local BOOT_DISK=$d
+		else
+			export TARGET_DISK=$d
+		fi
+	done
+
+	[ "" == "${BOOT_DISK}" ] && ERR "missing BOOT_DISK from these disks" && lsblk | grep disk | grep -v boot | awk '{printf "\t%s\n", $1}' && exit 1
+	[ "" == "${TARGET_DISK}" ] && ERR "missing TARGET_DISK from these disks" && lsblk | grep disk | grep -v boot | awk '{printf "\t%s\n", $1}' && exit 1
+
+	local BOOT_DISK_SIZE=$(lsblk | grep "^${BOOT_DISK} " | awk '{print $4}')
+	local BOOT_DISK_TYPE=$(parted /dev/${BOOT_DISK} print | grep "^Model:" | sed 's/^Model:\ //g')
+	export TARGET_DISK_SIZE=$(lsblk | grep "^${TARGET_DISK} " | awk '{print $4}')
+	export TARGET_DISK_TYPE=$(parted /dev/${TARGET_DISK} print | grep "^Model:" | sed 's/^Model:\ //g')
+
+	echo ""
+	INFO "BOOT DISK: $(YELLOW ${BOOT_DISK}), size: $(LIGHT_GREEN ${BOOT_DISK_SIZE}), type: $(PURPLE ${BOOT_DISK_TYPE})"
+	INFO "TARGET DISK: $(YELLOW ${TARGET_DISK}), size: $(LIGHT_GREEN ${TARGET_DISK_SIZE}), type: $(PURPLE ${TARGET_DISK_TYPE})"
+
+	[ "" == "$(echo ${BOOT_DISK_TYPE} | grep '^SD')" ] && ERR "BOOT DISK is not SD card" && exit 1
+	[ "" == "$(echo ${TARGET_DISK_TYPE} | grep '^MMC')" ] && ERR "TARGET DISK is not eMMC" && exit 1
+}
+
+
+function restore {
+	local SOURCE_DIR=$1
+	local DRIVE=/dev/${TARGET_DISK}
+	[ "" == "${MBR_SIZE}" ] && MBR_SIZE="1M"
+	[ "" == "${SOURCE_DIR}" ] && ERR "please specify the source directory with file contents and bootloader image to restore SD card" && exit 1
+	[ "" == "${DRIVE}" ] && ERR "please specify the target SD drive to restore, e.g. /dev/sdb" && exit 1
+	[ "" == "$(which pv)" ] && ERR "please install pv" && exit 1
+	[ "" == "$(which sfdisk)" ] && ERR "please install sfdisk" && exit 1
+	check_prerequisites pv sfdisk
+
+	[ ! -b "${DRIVE}" ] && ERR "invalid target drive: ${DRIVE}" && exit 1
+	[ ! -f "${SOURCE_DIR}/bootloader.img" ] && ERR "invalid source directory (${SOURCE_DIR}): missing bootloader.img" && exit 1 
+	[ ! -f "${SOURCE_DIR}/partitions.sfdisk.dump" ] && ERR "invalid source directory (${SOURCE_DIR}): missing partitions.sfdisk.dump" && exit 1 
+	[ ! -d "${SOURCE_DIR}/p1" ] && ERR "invalid source directory (${SOURCE_DIR}): missing p1" && exit 1 
+
+	INFO "Umount all partitions for $(LIGHT_GREEN ${DRIVE})"
+	mount | grep ${DRIVE} | awk '{print $1}' | xargs -I{} sh -c "umount {}"
+	sync
+
+	INFO "Wipe out the MBR, and partition table"
+	RUN_CMD dd if=/dev/zero of=${DRIVE} bs=${MBR_SIZE} count=1
+	RUN_CMD sync
+
+	INFO "Copy MBR (MLO and U-Boot) to SD card"
+	RUN_CMD dd if=${SOURCE_DIR}/bootloader.img of=${DRIVE}
+	RUN_CMD sync
+	
+	#INFO "Restore partition table"
+	#cat ${SOURCE_DIR}/partitions.sfdisk.dump | sfdisk ${DRIVE}
+	#RUN_CMD sleep 1
+	#RUN_CMD sync
+	#RUN_CMD sync
+	#RUN_CMD sleep 1
+	INFO "Re-partition ${DRIVE}"
+	RUN_CMD parted ${DRIVE} mklabel msdos
+	RUN_CMD parted ${DRIVE} mkpart primary ext4  0%  25%
+	RUN_CMD parted ${DRIVE} mkpart primary ext4 26%  50%
+	RUN_CMD parted ${DRIVE} mkpart primary ext4 51% 100%
+
+	INFO "Force kernel to re-read partition table for ${DRIVE}"
+	sfdisk --re-read ${DRIVE}
+	lsblk -l | grep ${TARGET_DISK} | grep -v boot | awk '{printf "\t/dev/%s\n", $1}'
+
+	local CURRENT=$(pwd)
+	local PARTITIONS=($(lsblk -l | grep ${TARGET_DISK} | grep -v boot | grep -v "${TARGET_DISK} " | sort | awk '{printf "/dev/%s\n", $1}'))
+	for p in "${PARTITIONS[@]}"; do
+		local NAME=$(basename ${p})
+		local NUM=${NAME:$((${#NAME}-1)):1}
+		local DIR="/mnt/${NAME}"
+		local SRC="${SOURCE_DIR}/p${NUM}"
+
+		RUN_CMD mkfs.ext4 ${p} || exit 1
+		RUN_CMD mkdir -p ${DIR}
+		RUN_CMD mount ${p} ${DIR} || exit 1
+
+		if [ -d "${SRC}" ]; then
+			cd ${SRC}
+			INFO "calculating total size of ${SRC} ..."
+			local SIZE=$(du -sb . | awk '{print $1}')
+			INFO "size = $(printf "%'d" ${SIZE}) bytes"
+			tar cf - . | pv -s ${SIZE} | tar xf - -C ${DIR}
+			cd ${CURRENT}
+		else
+			INFO "missing ${SRC} to restore $(LIGHT_GREEN ${p})"
+		fi
+
+		RUN_CMD umount ${p}
+		RUN_CMD sync
+	done
+
+	INFO "done."
+}
+
+
+function download_latest_image_and_restore {
+	[ "99991231z" == "${BOARD_BASE_VERSION}" ] && ERR "current BOARD_BASE_VERSION is 99991231z, which is invalid" && exit 2
+	local TMP_FILE=$(mktemp /tmp/XXXXXX)
+	local URL="${CLOUD_RELEASE_URL}/projects/${BOARD_PROFILE}/nodes/${BOARD}-sd-base/"
+	INFO "looking current base version ${BOARD_BASE_VERSION} from ${URL} ..."
+	http -a ${CLOUD_RELEASE_USER}:${CLOUD_RELEASE_PASS} ${URL} > ${TMP_FILE}
+	[ "0" != "$?" ] && ERR "failed to get file list from ${SERVER}/projects/foop/nodes/bbg-sd-base/" && rm -f ${TMP_FILE} && exit 2
+	local FILENAME=$(cat ${TMP_FILE} | jq ".[] | .name" | sed 's/\"//g' | grep "${BOARD_BASE_VERSION}.tar")
+	rm -f TMP_FILE
+	[ "" == "${FILENAME}" ] && ERR "no such base version: ${BOARD_BASE_VERSION}" && exit 2
+	INFO "Found. $(LIGHT_GREEN ${FILENAME})"
+
+	local NAME=${FILENAME%%.*}
+	local ARCHIVE_DIR="/tmp/${NAME}"
+	local ARCHIVE_FILE="/tmp/${FILENAME}"
+	if [ -f ${ARCHIVE_FILE} ]; then
+		INFO "reuse the existed archive file: ${ARCHIVE_FILE} ($(YELLOW $(ls -alh ${ARCHIVE_FILE} | awk '{print $5}')))"
+	else
+		wget --user ${CLOUD_RELEASE_USER} --password ${CLOUD_RELEASE_PASS} -O ${ARCHIVE_FILE} ${URL}/${FILENAME}
+		[ "0" != "$?" ] && ERR "failed to down ${URL}/${FILENAME}" && exit 2
+	fi
+
+	if [ "true" == "${SKIP_DECOMPRESSION_WHEN_EXIST}" ] && [ -d "${ARCHIVE_DIR}" ]; then
+		INFO "skip decompression because ${ARCHIVE_DIR} exists"
+	else
+		rm -rf ${ARCHIVE_DIR}
+		mkdir -p ${ARCHIVE_DIR}
+		INFO "decompressing ${ARCHIVE_FILE} to ${ARCHIVE_DIR} ..."
+		tar xf ${ARCHIVE_FILE} -C ${ARCHIVE_DIR}
+		[ "0" != "$?" ] && ERR "failed to decompress ${ARCHIVE}" && exit 2
+	fi
+
+	restore ${ARCHIVE_DIR}
+}
+
+function yac_main {
+	check_prerequisites
+	download_latest_image_and_restore
+}
