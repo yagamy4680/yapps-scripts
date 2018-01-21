@@ -35,6 +35,11 @@ function generate_yac_files_and_reboot {
 
 	local YAC_ID_FILE="/mnt/emmc/yac.id"
 	local YAC_TOKEN_FILE="/mnt/emmc/yac.token"
+	if [ "" == "$(mount | grep '/mnt/emmc')" ]; then
+		YAC_ID_FILE="/$(basename ${YAC_ID_FILE})"
+		YAC_TOKEN_FILE="/$(basename ${YAC_TOKEN_FILE})"
+		INFO "detect boot from eMMC, change id and token file location to current root"
+	fi
 	INFO "generating ${YAC_ID_FILE} ..."
 	echo ${IDENTITY} > ${YAC_ID_FILE}
 	INFO "generating ${YAC_TOKEN_FILE} ..."

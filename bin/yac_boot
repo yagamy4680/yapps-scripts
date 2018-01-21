@@ -14,6 +14,7 @@ function initiate_extra_ethernet_interfaces {
 		INFO "renew dhcp $(YELLOW ${DEVICE})"
 		dhclient ${DEVICE} && INFO "${DEVICE} => $(LIGHT_GREEN $(/sbin/ip -o -4 addr list ${DEVICE} | awk '{print $4}' | cut -d/ -f1))"
 	done
+	INFO "eth0 => $(LIGHT_GREEN $(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1))"
 }
 
 function mount_directories {
