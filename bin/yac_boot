@@ -261,10 +261,26 @@ function generate_id {
 
 		local EMMC_PARTITION1="/dev/mmcblk1p1"
 		local EMMC_PARTITION2="/dev/mmcblk1p2"
+		local EMMC_PARTITION3="/dev/mmcblk1p3"
 		local EMMC_ROOT_PARTITION=""
 		local EMMC_DIRECTORY="/mnt/emmc"
 
-		if [ -b "${EMMC_PARTITION2}" ]; then
+		if [ -b "${EMMC_PARTITION3}" ]; then
+			local TYPE1=$(blkid | grep ${EMMC_PARTITION1} | tr ' ' '\n' | grep "^TYPE" | sed 's/^TYPE=//g' | sed 's/"//g')
+			local TYPE2=$(blkid | grep ${EMMC_PARTITION2} | tr ' ' '\n' | grep "^TYPE" | sed 's/^TYPE=//g' | sed 's/"//g')
+			local TYPE3=$(blkid | grep ${EMMC_PARTITION3} | tr ' ' '\n' | grep "^TYPE" | sed 's/^TYPE=//g' | sed 's/"//g')
+			if [ "ext4" == "${TYPE1}" ] && [ "ext4" == "${TYPE2}" ] && [ "ext4" == "${TYPE3}" ]; then
+				# Booting from SD card, and BBB/BBG eMMC uses TOE image with
+				# 3 partitions
+				#	- /dev/mmcblk1p1 (ext4 for rootfs)
+				#	- /dev/mmcblk1p2 (ext4 for profile/applications)
+				#	- /dev/mmcblk1p3 (ext4 for data)
+				EMMC_ROOT_PARTITION=${EMMC_PARTITION1}
+				INFO "AM335X boots from eMMC with TOE partitions"
+			else
+				INFO "3 partitions but unexpected: ${TYPE1}/${TYPE2}/${TYPE3}"
+			fi
+		elif [ -b "${EMMC_PARTITION2}" ]; then
 			# Booting from SD card, and BBB/BBG eMMC uses kernel 3.8 with
 			# 2 partitions:
 			# 	- /dev/mmcblk1p1 (fat32 with boot-loader and MLB)
