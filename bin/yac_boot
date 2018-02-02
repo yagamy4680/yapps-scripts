@@ -312,7 +312,7 @@ function generate_id {
 			# Booting from eMMC
 			#
 			[ -f "${YAC_ID_FILE}" ] && BOARD_UNIQUE_ID=$(cat "${YAC_ID_FILE}")
-
+			[ -f "${YAC_TOKEN_FILE}" ] && BOARD_TOKEN=$(cat "${EMMC_DIRECTORY}${YAC_TOKEN_FILE}")
 		fi
 	elif [ "" != ${RPI_ID} ]; then
 		# It's RPi2/3, boots from SD card
