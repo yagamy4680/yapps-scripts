@@ -22,21 +22,21 @@ function mount_directories {
 	mkdir -p ${PROFILE_STORAGE_DIR}
 	mkdir -p ${PROFILE_CURRENT_DIR}
 	if [ "" == "$(mount | grep ${PROFILE_LOG_DIR})" ]; then
-		mkdir -p /mnt/data/profiles/${BOARD_PROFILE}/logs
-		mount -o bind /mnt/data/profiles/${BOARD_PROFILE}/logs ${PROFILE_LOG_DIR}
+		mkdir -p ${PROFILE_MNT_DAT_DIR}/logs
+		mount -o bind ${PROFILE_MNT_DAT_DIR}/logs ${PROFILE_LOG_DIR}
 		INFO "mount $(LIGHT_GREEN ${PROFILE_LOG_DIR})"
 		mkdir -p ${PROFILE_LOG_SYS_DIR}
 		mkdir -p ${PROFILE_LOG_APP_DIR}
 	fi
 
 	if [ "" == "$(mount | grep ${PROFILE_STORAGE_DIR})" ]; then
-		mkdir -p /mnt/data/profiles/${BOARD_PROFILE}/storage
-		mount -o bind /mnt/data/profiles/${BOARD_PROFILE}/storage ${PROFILE_STORAGE_DIR}
+		mkdir -p ${PROFILE_MNT_DAT_DIR}/storage
+		mount -o bind ${PROFILE_MNT_DAT_DIR}/storage ${PROFILE_STORAGE_DIR}
 		INFO "mount $(LIGHT_GREEN ${PROFILE_STORAGE_DIR})"
 	fi
 
 	if [ "" == "$(mount | grep ${PROFILE_CURRENT_DIR})" ]; then
-		mount -o bind /mnt/app/profiles/${BOARD_PROFILE}/${BOARD_PROFILE_VERSION} ${PROFILE_CURRENT_DIR}
+		mount -o bind ${PROFILE_MNT_APP_DIR}/${BOARD_PROFILE_VERSION} ${PROFILE_CURRENT_DIR}
 		INFO "mount $(LIGHT_GREEN ${PROFILE_CURRENT_DIR})"
 		mkdir -p ${PROFILE_CURRENT_LOG_DIR}
 	fi

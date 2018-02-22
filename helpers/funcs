@@ -1,6 +1,20 @@
 #!/bin/bash
+#
 
-function init-yac-variables {
+function get_env {
+	local NAME=$1
+	[ "" == "${NAME}" ] && return 0
+	local VALUE=${!NAME}
+	[ "" != "${VALUE}" ] && echo ${VALUE} && return 0
+	VALUE=$(cat /etc/environment | grep "^${NAME}=" | awk -F'=' '{print $2}')
+	[ "" != "${VALUE}" ] && echo ${VALUE} && return 0
+	VALUE=$2
+	[ "" != "${VALUE}" ] && echo ${VALUE} && return 0
+	[ "true" == "${ACCEPT_NULL}" ] && return 0
+	ERR "missing ${NAME} variable from environment variable or /etc/environment" && exit 1
+}
+
+function init_yac_variables {
 	TMP=$(pwd)
 	cd $(dirname $0)
 	cd ../
@@ -9,22 +23,25 @@ function init-yac-variables {
 	export YAC_LIB_DIR="${YAC_DIR}/helpers"
 	cd ${TMP}
 
-	[ "" == "${YS_DIR}" ] && export YS_DIR=$(cat /etc/environment | grep "^YS_DIR" | awk -F'=' '{print $2}')
-	[ "" == "${BOARD_PROFILE}" ] && export BOARD_PROFILE=$(cat /etc/environment | grep "^BOARD_PROFILE" | awk -F'=' '{print $2}')
-	[ "" == "${BOARD_BASE_VERSION}" ] && export BOARD_BASE_VERSION=$(cat /etc/environment | grep "^BOARD_BASE_VERSION" | awk -F'=' '{print $2}')
-	[ "" == "${BOARD_BASE_VERSION}" ] && BOARD_BASE_VERSION="99991231z"
+	[ "" == "${YS_DIR}" ] && export YS_DIR=$(get_env YS_DIR)
+	[ "" == "${YS_APP_DIR}" ] && export YS_APP_DIR=$(get_env YS_APP_DIR /mnt/app)
+	[ "" == "${YS_DAT_DIR}" ] && export YS_DAT_DIR=$(get_env YS_DAT_DIR /mnt/data)
+	[ "" == "${BOARD_PROFILE}" ] && export BOARD_PROFILE=$(get_env BOARD_PROFILE)
+	[ "" == "${BOARD_BASE_VERSION}" ] && export BOARD_BASE_VERSION=$(get_env BOARD_BASE_VERSION 99991231Z)
 
 	# Load BOARD variable from /etc/environment first, and then fallback to /etc/ys.conf
-	#
-	[ "" == "${BOARD}" ] && export BOARD=$(cat /etc/environment | grep "^BOARD=" | awk -F'=' '{print $2}')
+	[ "" == "${BOARD}" ] && export BOARD=$(ACCEPT_NULL=true get_env BOARD)
 	[ "" == "${BOARD}" ] && export BOARD=$(cat /etc/ys.conf | grep -P "^BOARD\t" | awk -F'\t' '{print $2}')
 
-	[ -f "/mnt/app/profiles/${BOARD_PROFILE}/env" ] || {
-		echo "production" > /mnt/app/profiles/${BOARD_PROFILE}/env
+	export PROFILE_MNT_APP_DIR="${YS_APP_DIR}/profiles/${BOARD_PROFILE}"
+	export PROFILE_MNT_DAT_DIR="${YS_DAT_DIR}/profiles/${BOARD_PROFILE}"
+
+	[ -f "${PROFILE_MNT_APP_DIR}/env" ] || {
+		echo "production" > ${PROFILE_MNT_APP_DIR}/env
 	}
-	cat /mnt/app/profiles/${BOARD_PROFILE}/env > /mnt/app/profiles/${BOARD_PROFILE}/env.old
-	export BOARD_PROFILE_ENV=$(cat /mnt/app/profiles/${BOARD_PROFILE}/env)
-	export BOARD_PROFILE_VERSION=$(cat /mnt/app/profiles/${BOARD_PROFILE}/entry)
+	cat ${PROFILE_MNT_APP_DIR}/env > ${PROFILE_MNT_APP_DIR}/env.old
+	export BOARD_PROFILE_ENV=$(cat ${PROFILE_MNT_APP_DIR}/env)
+	export BOARD_PROFILE_VERSION=$(cat ${PROFILE_MNT_APP_DIR}/entry)
 
 	export PROFILE_ROOT="/${BOARD_PROFILE}"
 	export PROFILE_LOG_DIR="${PROFILE_ROOT}/logs"
@@ -56,7 +73,7 @@ function init-yac-variables {
 	}
 	source ${CLOUD_BASHRC}
 
-	export RUNTIME_DIR="/mnt/app/runtimes"
+	export RUNTIME_DIR="${YS_APP_DIR}/runtimes"
 	initiate_nodejs_runtime_variables
 }
 

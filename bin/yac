@@ -2,8 +2,8 @@
 source "$(dirname $0)/../externals/bash-utils/verbose"
 source "$(dirname $0)/../externals/bash-utils/funcs"
 source "$(dirname $0)/../helpers/funcs"
-init-verbose $0
-init-yac-variables
+init_verbose $0
+init_yac_variables
 
 PREFIX=$(basename $0)
 
