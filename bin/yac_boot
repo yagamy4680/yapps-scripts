@@ -259,6 +259,18 @@ function generate_id {
 
 		[ "" == "$(echo ${BOARD_SERIAL_NUMBER} | grep "^bb.-")" ] || BOARD_SERIAL_NUMBER=$(echo ${BOARD_SERIAL_NUMBER} | sed 's/^bb.\-//g')
 
+		# Read device id and token with hook script if possible.
+		#
+		local ID=$(yac_hook load_device_id)
+		local EXIT1=$?
+		local TOKEN=$(yac_hook load_device_token)
+		local EXIT2=$?
+		if [ "" != "${ID}" ] && [ "" != "${TOKEN}" ] && [ "0" == "${EXIT1}" ] && [ "0" == "${EXIT2}" ]; then
+			export BOARD_UNIQUE_ID=${ID}
+			export BOARD_TOKEN=${TOKEN}
+			return 0
+		fi
+
 		local EMMC_PARTITION1="/dev/mmcblk1p1"
 		local EMMC_PARTITION2="/dev/mmcblk1p2"
 		local EMMC_PARTITION3="/dev/mmcblk1p3"

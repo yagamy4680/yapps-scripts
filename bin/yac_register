@@ -28,22 +28,30 @@ function generate_yac_files_and_reboot {
 	local IDENTITY=$(cat ${TMP} | jq .data.identity | sed 's/\"//g')
 	local NUMBER=$(cat ${TMP} | jq .data.sequence_number | sed 's/\"//g')
 	local TOKEN=$(cat ${TMP} | jq .data.token | sed 's/\"//g')
+	cat ${TMP} | jq .
 	rm -f ${TMP}
 
 	INFO "identity => $(LIGHT_GREEN ${IDENTITY})"
 	INFO "token => $(YELLOW ${TOKEN})"
 
-	local YAC_ID_FILE="/mnt/emmc/yac.id"
-	local YAC_TOKEN_FILE="/mnt/emmc/yac.token"
-	if [ "" == "$(mount | grep '/mnt/emmc')" ]; then
-		YAC_ID_FILE="/$(basename ${YAC_ID_FILE})"
-		YAC_TOKEN_FILE="/$(basename ${YAC_TOKEN_FILE})"
-		INFO "detect boot from eMMC, change id and token file location to current root"
+	yac_hook store_device_id_and_token ${IDENTITY} ${TOKEN}
+	local EXIT_CODE=$?
+
+	if [ "0" != "${EXIT_CODE}" ]; then
+		INFO "fallback to filesystem storage"
+		local YAC_ID_FILE="/mnt/emmc/yac.id"
+		local YAC_TOKEN_FILE="/mnt/emmc/yac.token"
+		if [ "" == "$(mount | grep '/mnt/emmc')" ]; then
+			YAC_ID_FILE="/$(basename ${YAC_ID_FILE})"
+			YAC_TOKEN_FILE="/$(basename ${YAC_TOKEN_FILE})"
+			INFO "detect boot from eMMC, change id and token file location to current root"
+		fi
+		INFO "generating ${YAC_ID_FILE} ..."
+		echo ${IDENTITY} > ${YAC_ID_FILE}
+		INFO "generating ${YAC_TOKEN_FILE} ..."
+		echo ${TOKEN} > ${YAC_TOKEN_FILE}
 	fi
-	INFO "generating ${YAC_ID_FILE} ..."
-	echo ${IDENTITY} > ${YAC_ID_FILE}
-	INFO "generating ${YAC_TOKEN_FILE} ..."
-	echo ${TOKEN} > ${YAC_TOKEN_FILE}
+
 	INFO "rebooting ..."
 	reboot
 }
@@ -107,9 +115,11 @@ function register_dev_node {
 
 
 function yac_main {
-	NAME=$1
+	local PROFILE_SYS_HOOK="${PROFILE_CURRENT_DIR}/etc/.yac"
+	local NAME=$1
 	INFO "NAME => ${NAME}"
 	shift
 	[ "" == "${NAME}" ] && INFO "please specify name" && exit 1
+	[ -f "${PROFILE_SYS_HOOK}" ] && source ${PROFILE_SYS_HOOK} && INFO "source $(LIGHT_GREEN ${PROFILE_SYS_HOOK})"
 	register_${NAME}_node $@
 }
