@@ -8,9 +8,13 @@ function load_variables {
 	export MACADDR_ETH=$(ifconfig | grep HWaddr | grep "^eth" | awk '{print $5}')
 	export MACADDR_USB=$(ifconfig | grep HWaddr | grep "^usb" | awk '{print $5}')
 	export MACADDR_WLAN=$(ifconfig | grep HWaddr | grep "^wlan" | awk '{print $5}')
+	export MACADDR_BLE=$(hciconfig | grep "BD Address" | awk '{print $3}' | tr '[A-Z]' '[a-z]')
+	export MACADDR_BLEMO=$(yac_hook get_macaddr blemo)
 	[ "" == "${MACADDR_ETH}" ] && MACADDR_ETH="00:00:00:00:00:00"
 	[ "" == "${MACADDR_USB}" ] && MACADDR_USB="00:00:00:00:00:00"
 	[ "" == "${MACADDR_WLAN}" ] && MACADDR_WLAN="00:00:00:00:00:00"
+	[ "" == "${MACADDR_BLE}" ] && MACADDR_BLE="00:00:00:00:00:00"
+	[ "" == "${MACADDR_BLEMO}" ] && MACADDR_BLEMO="00:00:00:00:00:00"
 
 	INFO "BOARD_PROFILE = ${BOARD_PROFILE}"
 	INFO "FILE_USER = ${CLOUD_FILE_USER}"
@@ -21,6 +25,8 @@ function load_variables {
 	INFO "MACADDR_ETH = ${MACADDR_ETH}"
 	INFO "MACADDR_USB = ${MACADDR_USB}"
 	INFO "MACADDR_WLAN = ${MACADDR_WLAN}"
+	INFO "MACADDR_BLE = ${MACADDR_BLE}"
+	INFO "MACADDR_BLEMO = ${MACADDR_BLEMO}"
 }
 
 function generate_yac_files_and_reboot {
@@ -107,6 +113,8 @@ function register_dev_node {
 			macaddr_eth=${MACADDR_ETH} \
 			macaddr_usb=${MACADDR_USB} \
 			macaddr_wlan=${MACADDR_WLAN} \
+			macaddr_ble=${MACADDR_BLE} \
+			macaddr_blemo=${MACADDR_BLEMO} \
 			> ${TMP}
 	local EXIT_CODE=$?
 	[ "0" != "${EXIT_CODE}" ] && ERR "failed to register" && cat ${TMP} && rm -f ${TMP} && exit 1
