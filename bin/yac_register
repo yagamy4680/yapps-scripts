@@ -66,15 +66,18 @@ function generate_yac_files_and_reboot {
 function register_production_node {
 	load_variables
 	[ "${BOARD_SERIAL_NUMBER}" != "${BOARD_UNIQUE_IDENTITY}" ] && [ "true" != "${FORCE}" ] && ERR "already register unique id $(LIGHT_GREEN ${BOARD_UNIQUE_IDENTITY}) (serial_number: $(YELLOW ${BOARD_SERIAL_NUMBER})), then skip registration." && exit 1
-	[ "" == "${PORT}" ] && local PORT=7070  # default tic-dm-proxy port number
 	[ "" == "${VERSION}" ] && local VERSION=${BOARD_BASE_VERSION}
-	if [ "" == "${IP}" ]; then
-		[ "" == "$(which avahi-browse)" ] && ERR "please install avahi-utils first" && exit 1
-		INFO "looking for tic-dm-proxy server running at port ${PORT} in local network ..."
-		local IP=$(avahi-browse -d local _http._tcp -t -r -p | grep ";${PORT};$" | awk -F';' '{print $8}' | head -n1)
-		local EXIT_CODE=$?
-		[ "0" != "${EXIT_CODE}" ] && ERR "failed to lookup tic-dm-proxy server, err: ${EXIT_CODE}" && exit ${EXIT_CODE}
-		[ "" == "${IP}" ] && ERR "missing tic-dm-proxy server at local network" && exit 1
+	if [ "" == "${SERVER}" ]; then
+		[ "" == "${PORT}" ] && local PORT=7070  # default tic-dm-proxy port number
+		if [ "" == "${IP}" ]; then
+			[ "" == "$(which avahi-browse)" ] && ERR "please install avahi-utils first" && exit 1
+			INFO "looking for tic-dm-proxy server running at port ${PORT} in local network ..."
+			local IP=$(avahi-browse -d local _http._tcp -t -r -p | grep ";${PORT};$" | awk -F';' '{print $8}' | head -n1)
+			local EXIT_CODE=$?
+			[ "0" != "${EXIT_CODE}" ] && ERR "failed to lookup tic-dm-proxy server, err: ${EXIT_CODE}" && exit ${EXIT_CODE}
+			[ "" == "${IP}" ] && ERR "missing tic-dm-proxy server at local network" && exit 1
+		fi
+		local SERVER="http://${IP}:${PORT}"
 	fi
 
 	if [ "00:00:00:00:00:00" == "${MACADDR_BLEMO}" ] && [ "true" != "${IGNORE_BLEMO}" ]; then
@@ -91,13 +94,16 @@ function register_production_node {
 	fi
 
 	local TMP=$(mktemp /tmp/XXXXXX)
-	INFO "posting data to http://${IP}:${PORT}/api/v3/nodes/${BOARD_PROFILE}/update-production-node/${BOARD_SERIAL_NUMBER} ..."
+	local URL="${SERVER}/api/v3/nodes/${BOARD_PROFILE}/update-production-node/${BOARD_SERIAL_NUMBER}"
+	INFO "posting data to ${URL} ..."
+	[ "" == "${AUTH}" ] || local AUTH_OPTS="-a ${AUTH}"
 
 	http \
 		--check-status \
 		--ignore-stdin \
-		http://${IP}:${PORT}/api/v3/nodes/${BOARD_PROFILE}/update-production-node/${BOARD_SERIAL_NUMBER} \
-			device=$(echo ${BOARD} | tr [a-z] [A-Z]) \
+		${AUTH_OPTS} \
+		${URL} \
+			device==$(echo ${BOARD} | tr [a-z] [A-Z]) \
 			version=${VERSION} \
 			macaddr_eth=${MACADDR_ETH} \
 			macaddr_usb=${MACADDR_USB} \
