@@ -517,8 +517,10 @@ function yac_main {
 
 	# Initiate extra ethernet interfaces.
 	#
-	INFO "initiate_extra_ethernet_interfaces"
-	initiate_extra_ethernet_interfaces
+	if [ "true" != "${FLASHER}" ]; then
+		INFO "initiate_extra_ethernet_interfaces"
+		initiate_extra_ethernet_interfaces
+	fi
 
 	# Generate all required identities.
 	#
@@ -527,38 +529,45 @@ function yac_main {
 	update_system_id
 	notify_event "update_system_id" ${BOARD_UNIQUE_ID}
 
-	# Restore timestamp from local disk cache.
-	#
-	notify_event "run_time_daemon_and_restore"
-	run_time_daemon_and_restore
+	if [ "true" != "${FLASHER}" ]; then
+		# Restore timestamp from local disk cache.
+		#
+		notify_event "run_time_daemon_and_restore"
+		run_time_daemon_and_restore
 
-	# Setup wifi connection.
-	#
-	INFO "bootup_wireless_adapter"
-	notify_event "bootup_wireless_adapter"
-	bootup_wireless_adapter
-	find_ap_and_connect
-	notify_event "wireless" "${WIRELESS_CONNECTED}" "${WIRELESS_CONNECTIVITY}"
-	network_wait
+		# Setup wifi connection.
+		#
+		INFO "bootup_wireless_adapter"
+		notify_event "bootup_wireless_adapter"
+		bootup_wireless_adapter
+		find_ap_and_connect
+		notify_event "wireless" "${WIRELESS_CONNECTED}" "${WIRELESS_CONNECTIVITY}"
+		network_wait
 
-	INFO "generate_sys_info_and_notify_cloud"
-	notify_event "generate_sys_info_and_notify_cloud"
-	generate_sys_info_and_notify_cloud
+		# Notify cloud (tic-dm)
+		#
+		INFO "generate_sys_info_and_notify_cloud"
+		notify_event "generate_sys_info_and_notify_cloud"
+		generate_sys_info_and_notify_cloud
 
-	INFO "synchronize_time"
-	notify_event "synchronize_time"
-	synchronize_time
+		# Synchronize with NTP time
+		#
+		INFO "synchronize_time"
+		notify_event "synchronize_time"
+		synchronize_time
 
-	# Load all crontab tasks from these 3 sources:
-	#	- ${YAC_DIR}/files/etc/cron.d/*
-	#	- ${YS_DIR}/etc/cron.d/*
-	#	- ${PROFILE_CURRENT_DIR}/etc/cron.d/*
-	#
-	INFO "load_crontab_tasks"
-	load_crontab_tasks
+		# Load all crontab tasks from these 3 sources:
+		#	- ${YAC_DIR}/files/etc/cron.d/*
+		#	- ${YS_DIR}/etc/cron.d/*
+		#	- ${PROFILE_CURRENT_DIR}/etc/cron.d/*
+		#
+		INFO "load_crontab_tasks"
+		load_crontab_tasks
+	fi
 
 	INFO "run_init_scripts"
 	run_init_scripts
+
 	notify_event "end"
 	INFO "yac_boot.end()"
 }
