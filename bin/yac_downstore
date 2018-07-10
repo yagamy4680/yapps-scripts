@@ -21,15 +21,20 @@ function check_prerequisites {
 			fi
 		fi
 	done
+	[ "" == "${BOOT_DISK}" ] && [ "nfs" == "$(cat /proc/cmdline | tr ' ' '\n' | grep "^root" | awk -F'=' '{print $2}' | xargs basename)" ] && export BOOT_DISK="nfs"
 	INFO "BOOT_DISK = $(LIGHT_GREEN ${BOOT_DISK})"
 	INFO "EMMC_DISK = $(LIGHT_GREEN ${EMMC_DISK})"
 	INFO "SDXC_DISK = $(LIGHT_GREEN ${SDXC_DISK})"
 	[ "" == "${BOOT_DISK}" ] && ERR "missing BOOT_DISK from these disks" && lsblk | grep disk | grep -v boot | awk '{printf "\t%s\n", $1}' && return 1
 
 	if [ "${BOOT_DIRK}" != "${EMMC_DISK}" ] && [ "${BOOT_DISK}" != "${SDXC_DISK}" ]; then
-		INFO "detect current boot from USB stick: $(parted /dev/${BOOT_DISK} print | grep '^Model:' | sed 's/^Model:\ //g')"
-		INFO "using emmc disk as target: ${EMMC_DISK}"
-		export TARGET_DISK=${EMMC_DISK}
+		if [ "nfs" == "${BOOT_DISK}" ]; then
+			export TARGET_DISK=${EMMC_DISK}
+		else
+			INFO "detect current boot from USB stick: $(parted /dev/${BOOT_DISK} print | grep '^Model:' | sed 's/^Model:\ //g')"
+			INFO "using emmc disk as target: ${EMMC_DISK}"
+			export TARGET_DISK=${EMMC_DISK}
+		fi
 	else
 		if [ "${BOOT_DISK}" == "${SDXC_DISK}" ]; then
 			INFO "detect current boot from micro SD card: $(parted /dev/${BOOT_DISK} print | grep '^Model:' | sed 's/^Model:\ //g')"
@@ -45,13 +50,14 @@ function check_prerequisites {
 	[ "" == "${BOOT_DISK}" ] && ERR "missing BOOT_DISK from these disks" && lsblk | grep disk | grep -v boot | awk '{printf "\t%s\n", $1}' && return 1
 	[ "" == "${TARGET_DISK}" ] && ERR "missing TARGET_DISK from these disks" && lsblk | grep disk | grep -v boot | awk '{printf "\t%s\n", $1}' && return 1
 
-	local BOOT_DISK_SIZE=$(lsblk | grep "^${BOOT_DISK} " | awk '{print $4}')
-	local BOOT_DISK_TYPE=$(parted /dev/${BOOT_DISK} print | grep "^Model:" | sed 's/^Model:\ //g')
+	echo ""
+	if [ "nfs" != "${BOOT_DISK}" ]; then
+		local BOOT_DISK_SIZE=$(lsblk | grep "^${BOOT_DISK} " | awk '{print $4}')
+		local BOOT_DISK_TYPE=$(parted /dev/${BOOT_DISK} print | grep "^Model:" | sed 's/^Model:\ //g')
+		INFO "BOOT DISK: $(YELLOW ${BOOT_DISK}), size: $(LIGHT_GREEN ${BOOT_DISK_SIZE}), type: $(PURPLE ${BOOT_DISK_TYPE})"
+	fi
 	export TARGET_DISK_SIZE=$(lsblk | grep "^${TARGET_DISK} " | awk '{print $4}')
 	export TARGET_DISK_TYPE=$(parted /dev/${TARGET_DISK} print | grep "^Model:" | sed 's/^Model:\ //g')
-
-	echo ""
-	INFO "BOOT DISK: $(YELLOW ${BOOT_DISK}), size: $(LIGHT_GREEN ${BOOT_DISK_SIZE}), type: $(PURPLE ${BOOT_DISK_TYPE})"
 	INFO "TARGET DISK: $(YELLOW ${TARGET_DISK}), size: $(LIGHT_GREEN ${TARGET_DISK_SIZE}), type: $(PURPLE ${TARGET_DISK_TYPE})"
 
 	# [ "" == "$(echo ${BOOT_DISK_TYPE} | grep '^SD')" ] && ERR "BOOT DISK is not SD card" && return 1
@@ -210,6 +216,6 @@ function download_latest_image_and_restore {
 }
 
 function yac_main {
-	check_prerequisites || exit $?
+	check_prerequisites || return $?
 	download_latest_image_and_restore $@
 }
