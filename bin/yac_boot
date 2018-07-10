@@ -371,6 +371,7 @@ function notify_cloud {
 
 function generate_sys_info_and_notify_cloud {
 	export BOARD_NAME="$(uname -n)"
+	[ "" == "${WIRELESS_IF}" ] && local WIRELESS_IF=$(ifconfig -a | grep wlan | awk '{print $1}')
 	export MAC_ADDR=$(ifconfig ${WIRELESS_IF} | grep HWaddr | grep ${WIRELESS_IF} | sed 's/.*HWaddr //g')
 
 	generate_ttt_system
@@ -543,13 +544,15 @@ function yac_main {
 		find_ap_and_connect
 		notify_event "wireless" "${WIRELESS_CONNECTED}" "${WIRELESS_CONNECTIVITY}"
 		network_wait
+	fi
 
-		# Notify cloud (tic-dm)
-		#
-		INFO "generate_sys_info_and_notify_cloud"
-		notify_event "generate_sys_info_and_notify_cloud"
-		generate_sys_info_and_notify_cloud
+	# Notify cloud (tic-dm)
+	#
+	INFO "generate_sys_info_and_notify_cloud"
+	notify_event "generate_sys_info_and_notify_cloud"
+	generate_sys_info_and_notify_cloud
 
+	if [ "true" != "${FLASHER}" ]; then
 		# Synchronize with NTP time
 		#
 		INFO "synchronize_time"
