@@ -207,11 +207,11 @@ function find_ap_and_connect {
 }
 
 function generate_ttt_system {
-cat << __EOF__ > /tmp/ttt_system
+cat << __EOF__
 id	${BOARD_UNIQUE_ID}
 sn	${BOARD_SERIAL_NUMBER}
 token	${BOARD_TOKEN}
-alias	${BOARD_NAME}
+alias	${BOARD_ALIAS}
 base_version	${BOARD_BASE_VERSION}
 profile	${BOARD_PROFILE}
 profile_version	${BOARD_PROFILE_VERSION}
@@ -221,6 +221,8 @@ wireless_ip_addr	${WIRELESS_IP_ADDR}
 wireless_mac_addr	${MAC_ADDR}
 wireless_handshake_time	${WIRELESS_CONNECTING_TIME}
 wireless_ssid	${SSID}
+$(call_board_hook gen_ttt_system_for_board)
+$(call_profile_hook gen_ttt_system_for_profile)
 __EOF__
 }
 
@@ -370,11 +372,13 @@ function notify_cloud {
 }
 
 function generate_sys_info_and_notify_cloud {
-	export BOARD_NAME="$(uname -n)"
+	export BOARD_ALIAS="$(uname -n)"
 	[ "" == "${WIRELESS_IF}" ] && local WIRELESS_IF=$(ifconfig -a | grep wlan | awk '{print $1}')
 	export MAC_ADDR=$(ifconfig ${WIRELESS_IF} | grep HWaddr | grep ${WIRELESS_IF} | sed 's/.*HWaddr //g')
 
-	generate_ttt_system
+	generate_ttt_system | grep -v "^$" > /tmp/ttt_system
+	INFO "/tmp/ttt_system"
+	cat /tmp/ttt_system | awk '{printf "\t%s\n", $0}'
 
 	if [ "true" == "${WIRELESS_CONNECTED}" ]; then
 		if [ "99" == "${WIRELESS_CONNECTIVITY}" ]; then
@@ -478,15 +482,22 @@ function run_init_scripts {
 	done
 }
 
-
-function notify_event {
+function call_board_hook {
 	# Invoke hook function from BOARD_SYS_HOOK (YS_DIR/etc/.yac)
 	#
-	call_func "yac_board_hook" "boot" $@
+	call_func "yac_board_hook" $@
+}
 
+function call_profile_hook {
 	# Invoke hook function from PROFILE_SYS_HOOK (/PROFILE/current/etc/.yac)
 	#
-	call_func "yac_hook" "boot" $@
+	call_func "yac_hook" $@
+}
+
+
+function notify_event {
+	call_board_hook boot $@
+	call_profile_hook boot $@
 }
 
 
