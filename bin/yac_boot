@@ -216,11 +216,7 @@ base_version	${BOARD_BASE_VERSION}
 profile	${BOARD_PROFILE}
 profile_version	${BOARD_PROFILE_VERSION}
 profile_env	${BOARD_PROFILE_ENV}
-wireless_ap_mac	${WIRELESS_AP_MAC}
-wireless_ip_addr	${WIRELESS_IP_ADDR}
-wireless_mac_addr	${MAC_ADDR}
-wireless_handshake_time	${WIRELESS_CONNECTING_TIME}
-wireless_ssid	${SSID}
+board	${BOARD}
 $(call_board_hook gen_ttt_system_for_board)
 $(call_profile_hook gen_ttt_system_for_profile)
 __EOF__
