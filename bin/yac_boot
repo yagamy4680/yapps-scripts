@@ -588,7 +588,7 @@ function yac_main {
 		load_crontab_tasks
 	fi
 
-	if [ "true" != "${YAC_BOOT_INGORE_PROFILE_INIT_SCRIPTS}" ]; then
+	if [ "true" != "${YAC_BOOT_IGNORE_PROFILE_INIT_SCRIPTS}" ]; then
 		# Run all scripts in /mnt/app/profiles/[PROFILE]/etc/init.d
 		# for the profile.
 		#
