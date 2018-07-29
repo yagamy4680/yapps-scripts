@@ -367,7 +367,7 @@ function notify_cloud {
 	rm -f ${TMP}
 }
 
-function generate_sys_info_and_notify_cloud {
+function generate_system_info {
 	export BOARD_ALIAS="$(uname -n)"
 	[ "" == "${WIRELESS_IF}" ] && local WIRELESS_IF=$(ifconfig -a | grep wlan | awk '{print $1}')
 	export MAC_ADDR=$(ifconfig ${WIRELESS_IF} | grep HWaddr | grep ${WIRELESS_IF} | sed 's/.*HWaddr //g')
@@ -375,7 +375,9 @@ function generate_sys_info_and_notify_cloud {
 	generate_ttt_system | grep -v "^$" > /tmp/ttt_system
 	INFO "/tmp/ttt_system"
 	cat /tmp/ttt_system | awk '{printf "\t%s\n", $0}'
+}
 
+function send_system_info_to_cloud {
 	if [ "true" == "${WIRELESS_CONNECTED}" ]; then
 		if [ "99" == "${WIRELESS_CONNECTIVITY}" ]; then
 			notify_cloud &
@@ -386,7 +388,6 @@ function generate_sys_info_and_notify_cloud {
 		ERR "failed to connect to any access-point"
 	fi
 }
-
 
 function run_time_daemon_and_restore {
 	local TIMESTAMP_LOGGING="${YAC_LIB_DIR}/timestamp_logging.py"
@@ -525,7 +526,7 @@ function yac_main {
 
 	# Initiate extra ethernet interfaces.
 	#
-	if [ "true" != "${FLASHER}" ]; then
+	if [ "true" != "${YAC_BOOT_IGNORE_EXTRA_ETHERNET_IF}" ]; then
 		INFO "initiate_extra_ethernet_interfaces"
 		initiate_extra_ethernet_interfaces
 	fi
@@ -537,12 +538,20 @@ function yac_main {
 	update_system_id
 	notify_event "update_system_id" ${BOARD_UNIQUE_ID}
 
-	if [ "true" != "${FLASHER}" ]; then
+	if [ "true" != "${YAC_BOOT_IGNORE_TIME_DAEMON}" ]; then
 		# Restore timestamp from local disk cache.
 		#
 		notify_event "run_time_daemon_and_restore"
 		run_time_daemon_and_restore
+	fi
 
+	# Generate `/tmp/ttt_system` information file.
+	#
+	INFO "generate_system_info"
+	notify_event "generate_system_info"
+	generate_system_info
+
+	if [ "true" != "${YAC_BOOT_IGNORE_WIRELESS_NETWORK_CONNECT}" ]; then
 		# Setup wifi connection.
 		#
 		INFO "bootup_wireless_adapter"
@@ -553,19 +562,23 @@ function yac_main {
 		network_wait
 	fi
 
-	# Notify cloud (tic-dm)
-	#
-	INFO "generate_sys_info_and_notify_cloud"
-	notify_event "generate_sys_info_and_notify_cloud"
-	generate_sys_info_and_notify_cloud
+	if [ "true" != "${YAC_BOOT_IGNORE_SEND_SYSINFO_TO_CLOUD}" ]; then
+		# Notify cloud (tic-dm)
+		#
+		INFO "send_system_info_to_cloud"
+		notify_event "send_system_info_to_cloud"
+		send_system_info_to_cloud
+	fi
 
-	if [ "true" != "${FLASHER}" ]; then
+	if [ "true" != "${YAC_BOOT_IGNORE_NTP}" ]; then
 		# Synchronize with NTP time
 		#
 		INFO "synchronize_time"
 		notify_event "synchronize_time"
 		synchronize_time
+	fi
 
+	if [ "true" != "${YAC_BOOT_IGNORE_LOAD_CRONTAB_TASKS}" ]; then
 		# Load all crontab tasks from these 3 sources:
 		#	- ${YAC_DIR}/files/etc/cron.d/*
 		#	- ${YS_DIR}/etc/cron.d/*
@@ -575,8 +588,13 @@ function yac_main {
 		load_crontab_tasks
 	fi
 
-	INFO "run_init_scripts"
-	run_init_scripts
+	if [ "true" != "${YAC_BOOT_INGORE_PROFILE_INIT_SCRIPTS}" ]; then
+		# Run all scripts in /mnt/app/profiles/[PROFILE]/etc/init.d
+		# for the profile.
+		#
+		INFO "run_init_scripts"
+		run_init_scripts
+	fi
 
 	notify_event "end"
 	INFO "yac_boot.end()"
