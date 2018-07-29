@@ -369,9 +369,6 @@ function notify_cloud {
 
 function generate_system_info {
 	export BOARD_ALIAS="$(uname -n)"
-	[ "" == "${WIRELESS_IF}" ] && local WIRELESS_IF=$(ifconfig -a | grep wlan | awk '{print $1}')
-	export MAC_ADDR=$(ifconfig ${WIRELESS_IF} | grep HWaddr | grep ${WIRELESS_IF} | sed 's/.*HWaddr //g')
-
 	generate_ttt_system | grep -v "^$" > /tmp/ttt_system
 	INFO "/tmp/ttt_system"
 	cat /tmp/ttt_system | awk '{printf "\t%s\n", $0}'
