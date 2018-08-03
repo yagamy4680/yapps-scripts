@@ -6,17 +6,6 @@ function check_prerequisites {
 	check_tool_prerequisites ifconfig iwlist
 }
 
-function initiate_extra_ethernet_interfaces {
-	[ "true" == "${YAPPS_SYS_INITIATE_EXTRA_ETHERNET_IFS}" ] || return
-	local INTERFACES=($(find /sys/class/net -maxdepth 1 -mindepth 1 | grep "/sys/class/net/eth" | grep -v "/sys/class/net/eth0"))
-	for eth in "${INTERFACES[@]}" ; do
-		local DEVICE=$(basename ${eth})
-		INFO "renew dhcp $(YELLOW ${DEVICE})"
-		dhclient ${DEVICE} && INFO "${DEVICE} => $(LIGHT_GREEN $(/sbin/ip -o -4 addr list ${DEVICE} | awk '{print $4}' | cut -d/ -f1))"
-	done
-	INFO "eth0 => $(LIGHT_GREEN $(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1))"
-}
-
 function mount_directories {
 	mkdir -p ${PROFILE_LOG_DIR}
 	mkdir -p ${PROFILE_STORAGE_DIR}
@@ -464,7 +453,7 @@ function network_wait {
 
 
 function run_init_scripts {
-	SCRIPTS=($(find ${PROFILE_CURRENT_DIR}/etc/init.d/ -type f | sort))
+	local SCRIPTS=($(find ${PROFILE_CURRENT_DIR}/etc/init.d/ -type f | sort))
 	for s in "${SCRIPTS[@]}"; do
 		INFO "executing $(LIGHT_GREEN ${BOARD_PROFILE}) / $(BLUE ${BOARD_PROFILE_VERSION}) / $(PURPLE $(basename $s)) ..."
 		notify_event "init" "$s" "begin"
@@ -525,13 +514,6 @@ function yac_main {
 	#
 	INFO "mount_hooks"
 	load_hooks
-
-	# Initiate extra ethernet interfaces.
-	#
-	if [ "true" != "${YAC_BOOT_IGNORE_EXTRA_ETHERNET_IF}" ]; then
-		INFO "initiate_extra_ethernet_interfaces"
-		initiate_extra_ethernet_interfaces
-	fi
 
 	# Generate all required identities.
 	#

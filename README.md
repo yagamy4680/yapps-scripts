@@ -18,21 +18,6 @@ Here are currently supported configurations:
 ## system configurations (default)
 ##--------------------------------------------------------
 
-
-## Initiate ethernet interfaces except `eth0` if any.
-#
-# For some SBC, there might be more than 1 ethernet interfaces, e.g. USB-Ethernet adapter.
-# Then, these extra ethernet interfaces (eth1, eht2, ...) shall be initiated with 
-# dhcp client.
-#
-# [[VALUES]]
-#
-# `true` : initiate ethernet interfaces except `eth0`
-# `false`: skip to initiate extra ethernet interfaces
-#
-INITIATE_EXTRA_ETHERNET_IFS: "true"
-
-
 ## Restore system time from various sources.
 #
 # After cool boot, the system time shall be adjusted to global
