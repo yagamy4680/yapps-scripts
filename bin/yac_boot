@@ -259,9 +259,9 @@ function generate_id {
 
 		# Read device id and token with hook script if possible.
 		#
-		local ID=$(yac_hook load_device_id)
+		local ID=$(yac_hook load_device_id ${BOARD_SERIAL_NUMBER})
 		local EXIT1=$?
-		local TOKEN=$(yac_hook load_device_token)
+		local TOKEN=$(yac_hook load_device_token ${BOARD_TOKEN})
 		local EXIT2=$?
 		if [ "" != "${ID}" ] && [ "" != "${TOKEN}" ] && [ "0" == "${EXIT1}" ] && [ "0" == "${EXIT2}" ]; then
 			export BOARD_UNIQUE_ID=${ID}
@@ -513,10 +513,15 @@ function yac_main {
 	INFO "load_configurations"
 	CONF_VERBOSE=true load_configurations
 
-	# Mount all hook functions for boot process from following
-	# 2 sources:
-	#   - /opt/ys/etc/.yac
-	#   - /PROFILE/current/etc/.yac
+	# Mount all hook functions for boot process from following 2 sources:
+	#
+	# Board Hook
+	#	- filepath: `/opt/ys/etc/.yac`
+	#	- function: yac_board_hook()
+	#
+	# Profile Hook
+	#	- filepath: `/mnt/app/profiles/[PROFILE]/current/etc/.yac`
+	#	- function: yac_hook()
 	#
 	INFO "mount_hooks"
 	load_hooks
