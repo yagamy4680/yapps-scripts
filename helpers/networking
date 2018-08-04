@@ -1,0 +1,137 @@
+#!/bin/bash
+#
+
+function print_netif_info {
+[ "" == "$1" ] && return 1
+local p=$1
+local d=$(readlink -f $p)
+cat <<__EOF__
+$(basename $p)
+$(cat $d/ifindex)
+$(($(cat $d/flags) & 0x01))
+$(($(cat $d/flags) & 0x02))
+$(cat $d/flags)
+$(cat $d/address)
+$(basename $(dirname $(dirname $d)))
+$p
+$d
+__EOF__
+}
+
+function detect_network_interfaces {
+	local OUTPUT_FILE=$1
+	local TMP_FILE=$(mktemp /tmp/XXXXXX)
+	INFO "detecting network interfaces ..."
+	for n in $(find ${NET_SYS_CLASS_PATH} -maxdepth 1 -mindepth 1); do
+		echo "$(print_netif_info $n | tr '\n' ' ')" | tee -a ${TMP_FILE}
+	done
+	cat ${TMP_FILE} | sort -n -k2 | grep -v virtual > ${OUTPUT_FILE}
+	rm -f ${TMP_FILE}
+	INFO "found network interfaces: $(LIGHT_GREEN $(cat ${OUTPUT_FILE} | awk '{print $1}' | tr '\n' ' '))"
+	cat ${OUTPUT_FILE} | awk '{printf "\t%s\n", $0}'
+}
+
+function get_profile_net_conf {
+	local NAME=$1
+	local DEFAULT=$2
+	local INFO=$3 # optional
+	[ "" == "${NAME}" ] && return 0
+	[ "" == "${DEFAULT}" ] && return 0
+	local VALUE=$(call_profile_hook get_net_conf ${NAME} ${DEFAULT} ${INFO} 2>/dev/null)
+	[ "0" != "$?" ] && echo "${DEFAULT}" && return 0
+	[ "" == "${VALUE}" ] && echo "${DEFAULT}" && return 0
+	echo "${VALUE}"
+}
+
+function net_bring_up_interface {
+	local COUNTER="5"
+	local NETIF=$1
+	[ "" == "${NETIF}" ] && INFO "no interface to be brought up" && return 1
+	local DIR=$2
+	local FILE="${DIR}/flags"
+	local UP=$(($(cat ${FILE}) & 0x01))
+
+	if [ "1" == "${UP}" ]; then
+		INFO "$(YELLOW ${NETIF}) has been brought up."
+	else
+		RUN_CMD_STREAMING "ip link set ${NETIF} up"
+		while true; do
+			UP=$(($(cat ${FILE}) & 0x01))
+			INFO "waiting for $(YELLOW ${NETIF}) up... $(PURPLE ${COUNTER})s (flags = $(LIGHT_GREEN $(cat ${FILE})), up = ${UP})"
+			[ "1" == "${UP}" ] && break
+			[ "$COUNTER" -lt "1" ] && INFO "waiting for $(YELLOW ${NETIF}) up ... timeout!!" && return 1
+			COUNTER=$(($COUNTER-1))
+			sleep 1
+		done
+	fi
+	return 0
+}
+
+function net_setup_wireless_data_link {
+	INFO "net_setup_wireless_data_link $@"
+	return 0
+}
+
+function net_setup_ethernet_data_link {
+	INFO "net_setup_ethernet_data_link: $@"
+	return 0
+}
+
+function net_setup_data_link {
+	local COUNTER=5
+	local NETIF=$1
+	[ "" == "${NETIF}" ] && INFO "no interface to be brought up" && return 1
+	local DIR=$2
+	local FILE="${DIR}/carrier"
+
+	case "${NETIF}" in
+		eth*)
+			net_setup_ethernet_data_link
+			;;
+		wlan*)
+			net_setup_wireless_data_link
+			;;
+		ppp*)
+			;;
+		*)
+			INFO "unsupported type of network interface to setup data link: ${NETIF}"
+			return 1
+	esac
+
+	local CARRIER=$(cat ${FILE})
+	if [ "1" == "${CARRIER}" ]; then
+		INFO "$(YELLOW ${NETIF}) data link layer is ready"
+	else
+		while true; do
+			local CARRIER=$(cat ${FILE})
+			INFO "waiting for $(YELLOW ${NETIF}) carrier ready... $(PURPLE ${COUNTER})s (carrier = $(LIGHT_GREEN ${CARRIER}))"
+			[ "1" == "${CARRIER}" ] && break
+			[ "$COUNTER" -lt "1" ] && INFO "waiting for $(YELLOW ${NETIF}) carrier ... timeout!!" && return 1
+			COUNTER=$(($COUNTER-1))
+			sleep 1
+		done
+	fi
+	return 0
+}
+
+function initialize_network {
+	export NET_INTERFACES_FILE="/tmp/interfaces.txt"
+	export NET_SYS_CLASS_PATH="/sys/class/net"
+	detect_network_interfaces ${NET_INTERFACES_FILE}
+
+	local DEFAULT_INTERFACES=$(cat ${NET_INTERFACES_FILE} | awk '{print $1}' | tr '\n' ',' | sed 's/,$//g')
+	local PREFERRED_INTERFACES=$(get_profile_net_conf "preferred_interfaces" ${DEFAULT_INTERFACES} ${NET_INTERFACES_FILE})
+	
+	INFO "detected interfaces: ${DEFAULT_INTERFACES}"
+	INFO "preferred interfaces: $(echo ${PREFERRED_INTERFACES} | tr ',' ' ')"
+
+	local XS=($(echo ${PREFERRED_INTERFACES} | tr ',' '\n'))
+
+	for interface in "${XS[@]}"; do
+		local INFO=$(cat ${NET_INTERFACES_FILE} | grep "^${interface}")
+		[ "" == "${INFO}" ] && INFO "ignore ${interface} because it is missing in ${NET_INTERFACES_FILE}" && continue
+		local DIR="${NET_SYS_CLASS_PATH}/${interface}"
+		net_bring_up_interface ${interface} ${DIR} &&
+			net_setup_data_link ${interface} ${DIR}
+	done
+}
