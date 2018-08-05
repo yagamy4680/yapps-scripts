@@ -13,9 +13,82 @@ $(($(cat $d/flags) & 0x02))
 $(cat $d/flags)
 $(cat $d/address)
 $(basename $(dirname $(dirname $d)))
-$p
 $d
 __EOF__
+}
+
+function net_wireless_connect_to_ap {
+	local NETIF=$1; shift
+	local TYPE=$1; shift
+	[ "" == "${NETIF}" ] && INFO "missing interface argument for net_wireless_connect_to_ap()" && return 1
+	[ "" == "${TYPE}" ] && INFO "[$(YELLOW ${NETIF})] missing type argument for net_wireless_connect_to_ap()" && return 1
+	if [ "passphrase" == "${TYPE}" ]; then
+		local SSID=$1
+		local PASS=$2
+		[ "" == "${SSID}" ] && INFO "[$(YELLOW ${NETIF})] missing ssid for net_wireless_connect_to_ap()" && return 1
+		[ "" == "${PASS}" ] && INFO "[$(YELLOW ${NETIF})] missing password for net_wireless_connect_to_ap()" && return 1
+		local CONF="/tmp/wireless_setting"
+		INFO "[$(YELLOW ${NETIF})] generating wpa configuration file ${CONF}"
+		wpa_passphrase ${SSID} ${PASS} > ${CONF}
+	else
+		local CONF=$1
+		[ ! -f "${CONF}" ] && INFO "[$(YELLOW ${NETIF})] no such configuration file ${CONF}" && return 1
+	fi
+
+	local DRIVER="$(cat ${CONF} | grep "^##DRIVER" | head -n1 | awk -F':' '{print $2}' | sed 's/\ //g')"
+	local AUTH_TIMEOUT="$(cat ${CONF} | grep "^##AUTH_TIMEOUT" | head -n1 | awk -F':' '{print $2}' | sed 's/\ //g')"
+	[ "" == "${DRIVER}" ] && DRIVER="wext"
+	[ "" == "${AUTH_TIMEOUT}" ] && AUTH_TIMEOUT="20"
+	INFO "[$(YELLOW ${NETIF})] driver => $(LIGHT_GREEN ${DRIVER})"
+	INFO "[$(YELLOW ${NETIF})] auth_timeout => $(LIGHT_GREEN ${AUTH_TIMEOUT})"
+
+	local WPA_PID_FILE="/run/wpa_supplicant.${NETIF}.pid"
+	[ "" == "${WPA_LOG_FILE}" ] && WPA_LOG_FILE="/tmp/wireless-`date +%Y%m%d%H%M%S`-boot.log"
+
+	##
+	# Clean up previous WPA-supplicant daemon instance with PID_FILE.
+	# 
+	if [ -f "${WPA_PID_FILE}" ]; then
+		local WPA_PID=$(cat ${WPA_PID_FILE})
+		if ps -p ${WPA_PID} > /dev/null ; then
+			local TMP_FILE=$(mktemp /tmp/XXXXXX)
+			cat /proc/${WPA_PID}/cmdline | xargs -0 printf '%s\n' > ${TMP_FILE}
+			if [ "" != "$(cat ${TMP_FILE} | head -n1 | grep 'wpa_supplicant')" ] && [ "" != "$(cat ${TMP_FILE} | grep \"^${NETIF}$\")" ]; then
+				INFO "[$(YELLOW ${NETIF})] kill previous wpa-supplicant instance with pid file ${WPA_PID_FILE} => process ${WPA_PID}"
+				kill -9 ${WPA_PID}
+			fi
+			rm -f ${TMP_FILE}
+		fi
+	fi
+
+	##
+	# Clean up any WPA-supplicant daemon instance that uses same wireless interface.
+	#
+	for p in $(ps aux | grep wpa_supplicant | grep ${NETIF} | awk '{print $2}') ; do
+		INFO "[$(YELLOW ${NETIF})] kill unknown wpa-supplicant instance with pid ${p}"
+		kill -9 ${p}
+	done
+
+	##
+	# Run WPA-Supplicant daemon.
+	#
+	RUN_CMD_STREAMING "wpa_supplicant -dd -t -B -i ${NETIF} -D${DRIVER} -P${WPA_PID_FILE} -c${CONF} -f${WPA_LOG_FILE}"
+
+	##
+	# Wait until the data-link (carrier) is ready.
+	#
+	net_wait_datalink ${NETIF} ${AUTH_TIMEOUT}
+	local EXIT_CODE=$?
+	[ "0" != "${EXIT_CODE}" ] && return ${EXIT_CODE}
+
+	INFO "[$(YELLOW ${NETIF})] iwconfig: "
+	iwconfig ${NETIF} | awk '{printf "\t%s\n", $0}'
+
+	if [ "" != "$(iwconfig ${NETIF} | head -n1 | grep -i 'unassociated')" ]; then
+		INFO "[$(YELLOW ${NETIF})] carrier is 1 but not connected to wireless access point"
+		return 1
+	fi
+	return 0
 }
 
 function net_detect_interfaces {
@@ -52,72 +125,183 @@ function net_bring_up_interface {
 	local UP=$(($(cat ${FILE}) & 0x01))
 
 	if [ "1" == "${UP}" ]; then
-		INFO "$(YELLOW ${NETIF}) has been brought up (interface-up)"
+		INFO "[$(YELLOW ${NETIF})] interface been brought up (if-up)"
 		return 0
 	else
 		RUN_CMD_STREAMING "ip link set ${NETIF} up"
 		while true; do
 			UP=$(($(cat ${FILE}) & 0x01))
-			INFO "waiting for $(YELLOW ${NETIF}) up... $(PURPLE ${COUNTER})s (flags = $(LIGHT_GREEN $(cat ${FILE})), up = ${UP})"
+			INFO "[$(YELLOW ${NETIF})] waiting for interface up... $(PURPLE ${COUNTER})s (flags = $(LIGHT_GREEN $(cat ${FILE})), up = ${UP})"
 			[ "1" == "${UP}" ] && break
-			[ "$COUNTER" -lt "1" ] && INFO "waiting for $(YELLOW ${NETIF}) up ... timeout!!" && return 1
+			[ "$COUNTER" -lt "1" ] && INFO "[$(YELLOW ${NETIF})] waiting for interface up ... but timeout!!" && return 1
 			COUNTER=$(($COUNTER-1))
 			sleep 1
 		done
-		INFO "$(YELLOW ${NETIF}) is brought up (interface-up)"
+		INFO "[$(YELLOW ${NETIF})] is brought up (if-up)"
 	fi
 }
 
-function net_dailup_wireless_data_link {
-	local NETIF=$1
-	return 0
+function net_dialup_datalink_wireless {
+	## Find access-points, and try to connect
+	#
+	local WIRELESS_IF=$1
+	local AP_LIST=$(mktemp /tmp/XXXXXX)
+	INFO "[$(YELLOW ${WIRELESS_IF})] scanning access points ..."
+	iwlist ${WIRELESS_IF} scanning | bash ${YAC_LIB_DIR}/parse_iwlist_scan | sort -u > ${AP_LIST}
+	INFO "[$(YELLOW ${WIRELESS_IF})] found access-points: $(BLUE $(cat ${AP_LIST} | tr '\n' ' '))"
+
+	# Read system settings for wireless
+	#
+	local TMP2=$(mktemp /tmp/XXXXXX)
+	local TMP3=$(mktemp /tmp/XXXXXX)
+	local TMP4=$(mktemp /tmp/XXXXXX)
+	local PROFILE_WPA_CONF="${YS_DIR}/profiles/${BOARD_PROFILE}/wpa.config"
+
+	[ "" == "${WIRELESS_KEYSTORES}" ] && WIRELESS_KEYSTORES="${YS_DIR}/wireless-keystores.conf"
+	[ ! -f "${WIRELESS_KEYSTORES}" ] && WIRELESS_KEYSTORES="${YS_DIR}/wireless-keystores.conf"
+	local PROFILE_WIRELESS_KEYSTORES="${YS_DIR}/profiles/${BOARD_PROFILE}/wireless-keystores.conf"
+	[ -f "${PROFILE_WIRELESS_KEYSTORES}" ] && cat ${PROFILE_WIRELESS_KEYSTORES} | sed -e 's/^ *//' | sed -e 's/ *$//' | sed 's/#.*$//g' | grep -v "^$" | nl -nrz -w9 > ${TMP2}
+	[ -f "${WIRELESS_KEYSTORES}" ] && cat ${WIRELESS_KEYSTORES} | sed -e 's/^ *//' | sed -e 's/ *$//' | sed 's/#.*$//g' | grep -v "^$" | nl -nrz -w9 >> ${TMP2}
+	cat ${AP_LIST} | tr '\n' '\0' | xargs -0 -I{} sh -c "grep -P \"^.........\t{}\t\" ${TMP2}" >> ${TMP3}
+	[ -f "${PROFILE_WPA_CONF}" ] && echo ${PROFILE_WPA_CONF} > ${TMP4}
+	sort ${TMP3} | awk -F '\t' '{printf "%s\t%s\n", $2, $3}' >> ${TMP4}
+	INFO "[$(YELLOW ${WIRELESS_IF})] try access-points: $(BLUE $(cat ${TMP4} | awk -F '\t' '{print $1}' | tr '\n' ' '))"
+
+	local LOGFILE="${PROFILE_LOG_SYS_DIR}/${WIRELESS_IF}_wpa_`date +%Y_%m%d_%H%M`.log"
+	IFS=$' \n'
+	local SETTINGS=($(cat ${TMP4}))
+	unset IFS
+
+	rm -f ${TMP2} ${TMP3} ${TMP4} ${AP_LIST}
+
+	export WIRELESS_CONNECTED="false"
+	export WIRELESS_CONNECTIVITY="0"
+
+	# Try to connect wireless access point one-by-one
+	#
+	for s in "${SETTINGS[@]}" ; do
+		local SSID=$(echo $s | awk '{print $1}')
+		local PASS=$(echo $s | awk '{print $2}')
+		notify_event "find_ap_and_connect" ${WIRELESS_IF} ${SSID} ${PASS}
+
+		local TYPE="passphrase"
+		if [ "${SSID}" == "${PROFILE_WPA_CONF}" ]; then
+			TYPE="conf"
+			INFO "[$(YELLOW ${WIRELESS_IF})] connecting to wireless access-point with wpa config $(YELLOW ${PROFILE_WPA_CONF})"
+		else
+			INFO "[$(YELLOW ${WIRELESS_IF})] connecting to $(YELLOW ${SSID}) with password $(YELLOW ${PASS})"
+		fi
+		WPA_LOG_FILE=${LOGFILE} net_wireless_connect_to_ap ${WIRELESS_IF} ${TYPE} ${SSID} ${PASS}
+		[ "0" != "$?" ] && sleep 1 && continue
+
+		export WIRELESS_AP_MAC=$(iwconfig ${WIRELESS_IF} | grep 'Access Point' | sed 's/.*Access Point: //g')
+		if [ "" == "$(echo ${WIRELESS_AP_MAC} | grep ':')" ]; then
+			sleep 1
+		else
+			export WIRELESS_CONNECTED="true"
+			INFO "[$(YELLOW ${WIRELESS_IF})] wireless-ap-mac = $(LIGHT_GREEN ${WIRELESS_AP_MAC})"
+			rm -f ${PROFILE_CURRENT_LOG_DIR}/wireless.log
+			ln -s ${LOGFILE} ${PROFILE_CURRENT_LOG_DIR}/wireless.log
+			INFO "[$(YELLOW ${WIRELESS_IF})] log: $(BLUE ${PROFILE_CURRENT_LOG_DIR}/wireless.log) -> ${LOGFILE}"
+			break
+		fi
+	done
 }
 
-function net_dailup_ethernet_data_link {
-	local NETIF=$2
-	return 0
+function net_dialup_datalink_ethernet {
+	local NETIF=$1
+	if net_wait_datalink ${NETIF} 5; then
+		return 0
+	else
+		INFO "[$(YELLOW ${NETIF})] data link failure, maybe cable is unplugged!!"
+		return 1
+	fi
 }
 
-function net_dailup_data_link {
-	local COUNTER=5
+function net_wait_datalink {
 	local NETIF=$1
-	local DAILUP=$2
 	[ "" == "${NETIF}" ] && INFO "no interface to be dailed up" && return 1
-	[ "" == "${DAILUP}" ] && INFO "no dail up function for ${NETIF}" && return 1
+	local TIMEOUT=$2
+	[ "" == "${TIMEOUT}" ] && TIMEOUT="20"
 	local FILE="${NET_SYS_CLASS_PATH}/${NETIF}/carrier"
-
-	${DAILUP} ${NETIF}
-	local EXIT_CODE=$?
-	[ "0" != "${EXIT_CODE}" ] && INFO "failed to perform dail up for ${NETIF} with ${DAILUP}(), exit: ${EXIT_CODE}" && return 1
 
 	local CARRIER=$(cat ${FILE})
 	if [ "1" == "${CARRIER}" ]; then
-		INFO "$(YELLOW ${NETIF}) data link layer is ready (data-link-dailup)"
+		INFO "[$(YELLOW ${NETIF})] data link layer is ready (data-link-dailup)"
+		return 0
 	else
 		while true; do
 			local CARRIER=$(cat ${FILE})
-			INFO "waiting for $(YELLOW ${NETIF}) carrier ready... $(PURPLE ${COUNTER})s (carrier = $(LIGHT_GREEN ${CARRIER}))"
+			INFO "[$(YELLOW ${NETIF})] waiting for data-link carrier ready... $(PURPLE ${TIMEOUT})s (carrier = $(LIGHT_GREEN ${CARRIER}))"
 			[ "1" == "${CARRIER}" ] && break
-			[ "$COUNTER" -lt "1" ] && INFO "waiting for $(YELLOW ${NETIF}) carrier ... timeout!!" && return 1
-			COUNTER=$(($COUNTER-1))
+			[ "$TIMEOUT" -lt "1" ] && INFO "[$(YELLOW ${NETIF})] waiting for data-link carrier ... but timeout!!" && return 1
+			TIMEOUT=$(($TIMEOUT-1))
 			sleep 1
 		done
+		return 0
 	fi
+}
+
+function net_configure_ip_static {
+	local NETIF=$1
+	# [todo] implement static ip configuration.
+}
+
+function net_configure_ip_dhcp {
+	local NETIF=$1
+	local DHCLIENT_PID_FILE="/run/dhclient.${NETIF}.pid"
+	local DHCLIENT_LEASE_FILE="/var/lib/dhcp/dhclient.${NETIF}.leases"
+	rm -f ${DHCLIENT_LEASE_FILE}
+
+    ##
+	# Clean up previous WPA-supplicant daemon instance with PID_FILE.
+	#
+	if [ -f "${DHCLIENT_PID_FILE}" ]; then
+		local DHCLIENT_PID=$(cat ${DHCLIENT_PID_FILE})
+		if ps -p ${DHCLIENT_PID} > /dev/null ; then
+			local TMP_FILE=$(mktemp /tmp/XXXXXX)
+			cat /proc/${DHCLIENT_PID}/cmdline | xargs -0 printf '%s\n' > ${TMP_FILE}
+			if [ "" != "$(cat ${TMP_FILE} | head -n1 | grep 'dhclient')" ] && [ "" != "$(cat ${TMP_FILE} | grep \"^${NETIF}$\")" ]; then
+				INFO "[$(YELLOW ${NETIF})] kill previous dhclient instance with pid file ${DHCLIENT_PID_FILE} => process ${DHCLIENT_PID}"
+				kill -9 ${DHCLIENT_PID}
+			fi
+			rm -f ${TMP_FILE}
+		fi
+	fi
+
+    ##
+	# Clean up any dhclient instance that uses same wireless interface.
+	#
+	for p in $(ps aux | grep dhclient | grep ${NETIF} | awk '{print $2}') ; do
+		INFO "[$(YELLOW ${NETIF})] kill unknown wpa-supplicant instance with pid ${p}"
+		kill -9 ${p}
+	done
+
+	##
+	# Run dhclient to allocate ip address from DHCP server in the 
+	# local network.
+	#
+	RUN_CMD_STREAMING "dhclient -pf ${DHCLIENT_PID_FILE} -lf ${DHCLIENT_LEASE_FILE} ${NETIF}"
+	local EXIT_CODE=$?
+	[ "0" != "${EXIT_CODE}" ] && return ${EXIT_CODE}
+
+	INFO "[$(YELLOW ${NETIF})] ifconfig: "
+	ifconfig ${NETIF} | awk '{printf "\t%s\n", $0}'
 	return 0
 }
 
 function initialize_network {
+	source ${YAC_LIB_DIR}/wireless_connect
+
 	export NET_INTERFACES_FILE="/tmp/interfaces.txt"
 	export NET_SYS_CLASS_PATH="/sys/class/net"
 	net_detect_interfaces ${NET_INTERFACES_FILE}
 
 	local DEFAULT_INTERFACES=$(cat ${NET_INTERFACES_FILE} | awk '{print $1}' | tr '\n' ',' | sed 's/,$//g')
 	local PREFERRED_INTERFACES=$(net_get_profile_conf "preferred_interfaces" ${DEFAULT_INTERFACES} ${NET_INTERFACES_FILE})
-	
-	INFO "detected interfaces: ${DEFAULT_INTERFACES}"
-	INFO "preferred interfaces: $(echo ${PREFERRED_INTERFACES} | tr ',' ' ')"
-
 	local XS=($(echo ${PREFERRED_INTERFACES} | tr ',' '\n'))
+	
+	INFO "preferred interfaces: $(YELLOW $(echo ${PREFERRED_INTERFACES} | tr ',' ' '))"
 
 	for interface in "${XS[@]}"; do
 		local INFO=$(cat ${NET_INTERFACES_FILE} | grep "^${interface}")
@@ -125,10 +309,10 @@ function initialize_network {
 
 		case "${interface}" in
 			eth*)
-				local DAILUP="net_dailup_ethernet_data_link"
+				local LINK_TYPE="ethernet"
 				;;
 			wlan*)
-				local DAILUP="net_dailup_wireless_data_link"
+				local LINK_TYPE="wireless"
 				;;
 			ppp*)
 				INFO "ppp dialup is unsupported: ${interface}"
@@ -144,7 +328,13 @@ function initialize_network {
 				;;
 		esac
 
+		# Get ip type settings from profile.
+		local IP_TYPE="dhcp"
+		local IP_ARGS=""
+
 		net_bring_up_interface ${interface} &&
-			net_dailup_data_link ${interface} ${DAILUP}
+			net_dialup_datalink_${LINK_TYPE} ${interface} &&
+			net_configure_ip_${IP_TYPE} ${interface} ${IP_ARGS}
 	done
+	return 0
 }

@@ -465,6 +465,18 @@ function run_init_scripts {
 	done
 }
 
+function get_profile_net_conf {
+	local NAME=$1
+	local DEFAULT=$2
+	local INFO=$3 # optional
+	[ "" == "${NAME}" ] && return 0
+	[ "" == "${DEFAULT}" ] && return 0
+	local VALUE=$(call_profile_hook get_net_conf ${NAME} ${DEFAULT} ${INFO} 2>/dev/null)
+	[ "0" != "$?" ] && echo "${DEFAULT}" && return 0
+	[ "" == "${VALUE}" ] && echo "${DEFAULT}" && return 0
+	echo "${VALUE}"
+}
+
 function call_board_hook {
 	# Invoke hook function from BOARD_SYS_HOOK (YS_DIR/etc/.yac)
 	#
@@ -522,6 +534,18 @@ function yac_main {
 	update_system_id
 	notify_event "update_system_id" ${BOARD_UNIQUE_ID}
 
+	# Generate `/tmp/ttt_system` information file.
+	#
+	INFO "generate_system_info"
+	notify_event "generate_system_info"
+	generate_system_info
+
+	# Initialize network interfaces.
+	#
+	INFO initialize_network
+	source "${YAC_LIB_DIR}/networking"
+	initialize_network || (ifconfig eth0 up; dhclient eth0; ifconfig -a)
+
 	if [ "true" != "${YAC_BOOT_IGNORE_TIME_DAEMON}" ]; then
 		# Restore timestamp from local disk cache.
 		#
@@ -529,22 +553,16 @@ function yac_main {
 		run_time_daemon_and_restore
 	fi
 
-	# Generate `/tmp/ttt_system` information file.
-	#
-	INFO "generate_system_info"
-	notify_event "generate_system_info"
-	generate_system_info
-
-	if [ "true" != "${YAC_BOOT_IGNORE_WIRELESS_NETWORK_CONNECT}" ]; then
+	#if [ "true" != "${YAC_BOOT_IGNORE_WIRELESS_NETWORK_CONNECT}" ]; then
 		# Setup wifi connection.
 		#
-		INFO "bootup_wireless_adapter"
-		notify_event "bootup_wireless_adapter"
-		bootup_wireless_adapter
-		find_ap_and_connect
-		notify_event "wireless" "${WIRELESS_CONNECTED}" "${WIRELESS_CONNECTIVITY}"
-		network_wait
-	fi
+	#	INFO "bootup_wireless_adapter"
+	#	notify_event "bootup_wireless_adapter"
+	#	bootup_wireless_adapter
+	#	find_ap_and_connect
+	#	notify_event "wireless" "${WIRELESS_CONNECTED}" "${WIRELESS_CONNECTIVITY}"
+	#	network_wait
+	#fi
 
 	if [ "true" != "${YAC_BOOT_IGNORE_SEND_SYSINFO_TO_CLOUD}" ]; then
 		# Notify cloud (tic-dm)
