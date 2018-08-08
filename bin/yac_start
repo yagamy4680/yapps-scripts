@@ -37,7 +37,7 @@ function yac_main {
 	rm -f /tmp/yap/${APP}.system.sock
 
 	local APP_RUNTIME_EXECUTABLE="${RUNTIME_NODEJS_DIR}/bin/node"
-	local APP_RUNTIME_OPTS="--expose-gc"
+	local APP_RUNTIME_OPTS="--expose-gc"  # All V8 flags can be found by the command `node --v8-options`
 	local APP_RUNTIME_MODULE_PATH="${NODEJS_MODULE_DIR}/node_modules"
 	local APP_ENTRY="${APP_DIR}/index.js"
 	local APP_LOGFILE="${LOG_FILE}"
