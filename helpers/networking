@@ -301,36 +301,47 @@ function initialize_network {
 	local PREFERRED_INTERFACES=$(net_get_profile_conf "preferred_interfaces" ${DEFAULT_INTERFACES} ${NET_INTERFACES_FILE})
 	local XS=($(echo ${PREFERRED_INTERFACES} | tr ',' '\n'))
 	
-	INFO "preferred interfaces: $(YELLOW $(echo ${PREFERRED_INTERFACES} | tr ',' ' '))"
+	INFO "preferred interfaces: $(YELLOW $(echo ${PREFERRED_INTERFACES} | tr ',' ' ' | awk -F'/' '{print $1}'))"
 
-	for interface in "${XS[@]}"; do
+	for x in "${XS[@]}"; do
+		local interface=$(echo ${x} | awk -F'/' '{print $1}')
+		[ "" == "${interface}" ] && continue
 		local INFO=$(cat ${NET_INTERFACES_FILE} | grep "^${interface}")
 		[ "" == "${INFO}" ] && INFO "ignore ${interface} because it is missing in ${NET_INTERFACES_FILE}" && continue
 
-		case "${interface}" in
-			eth*)
-				local LINK_TYPE="ethernet"
-				;;
-			wlan*)
-				local LINK_TYPE="wireless"
-				;;
-			ppp*)
-				INFO "ppp dialup is unsupported: ${interface}"
-				continue
-				;;
-			usb*)
-				INFO "usb dialup is unsupported: ${interface}"
-				continue
-				;;
-			*)
-				INFO "unknown network interface ${interface}, and no idea how to dial up"
-				continue
-				;;
-		esac
-
-		# Get ip type settings from profile.
-		local IP_TYPE="dhcp"
+		local LINK_TYPE=$(echo ${x} | awk -F'/' '{print $2}')
+		local IP_TYPE=$(echo ${x} | awk -F'/' '{print $3}')
 		local IP_ARGS=""
+
+		if [ "" == "${LINK_TYPE}" ]; then
+			case "${interface}" in
+				eth*)
+					LINK_TYPE="ethernet"
+					;;
+				wlan*)
+					LINK_TYPE="wireless"
+					;;
+				ppp*)
+					INFO "ppp dialup is unsupported: ${interface}"
+					continue
+					;;
+				usb*)
+					INFO "usb dialup is unsupported: ${interface}"
+					continue
+					;;
+				*)
+					INFO "unknown network interface ${interface}, and no idea how to dial up"
+					continue
+					;;
+			esac
+		fi
+		if [ "" == "${IP_TYPE}" ]; then
+			IP_TYPE="dhcp"
+		else
+			IP_ARGS=$(echo ${x} | tr '/' '\n' | awk 'NR>3' | tr '\n' ' ')
+		fi
+
+		INFO "[$(YELLOW ${interface})] initialization - link: $(LIGHT_GREEN ${LINK_TYPE}), ip: $(BLUE ${IP_TYPE}) $(GRAY ${IP_ARGS})"
 
 		net_bring_up_interface ${interface} &&
 			net_dialup_datalink_${LINK_TYPE} ${interface} &&
