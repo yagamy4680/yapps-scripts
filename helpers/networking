@@ -119,6 +119,8 @@ function net_get_profile_conf {
 function net_bring_up_interface {
 	local COUNTER="5"
 	local NETIF=$1
+	local WAITING=$2
+	[ "" == "${WAITING}" ] && WAITING="true"
 	[ "" == "${NETIF}" ] && INFO "no interface to be brought up" && return 1
 	local FILE="${NET_SYS_CLASS_PATH}/${NETIF}/flags"
 	[ ! -f "${FILE}" ] && INFO "flag file ${FILE} does not exist" && return 1
@@ -129,6 +131,7 @@ function net_bring_up_interface {
 		return 0
 	else
 		RUN_CMD_STREAMING "ip link set ${NETIF} up"
+		[ "false" == "${WAITING}" ] && return 0
 		while true; do
 			UP=$(($(cat ${FILE}) & 0x01))
 			INFO "[$(YELLOW ${NETIF})] waiting for interface up... $(PURPLE ${COUNTER})s (flags = $(LIGHT_GREEN $(cat ${FILE})), up = ${UP})"
@@ -297,12 +300,26 @@ function initialize_network {
 	export NET_SYS_CLASS_PATH="/sys/class/net"
 	net_detect_interfaces ${NET_INTERFACES_FILE}
 
-	local DEFAULT_INTERFACES=$(cat ${NET_INTERFACES_FILE} | awk '{print $1}' | tr '\n' ',' | sed 's/,$//g')
-	local PREFERRED_INTERFACES=$(net_get_profile_conf "preferred_interfaces" ${DEFAULT_INTERFACES} ${NET_INTERFACES_FILE})
-	local XS=($(echo ${PREFERRED_INTERFACES} | tr ',' '\n'))
-	
-	INFO "preferred interfaces: $(YELLOW $(echo ${PREFERRED_INTERFACES} | tr ',' ' ' | awk -F'/' '{print $1}'))"
+	local TMP_NETIFS_LISTED="${NET_INTERFACES_FILE}.listed"
+	local TMP_NETIFS_PREFERRED="${NET_INTERFACES_FILE}.preferred"
 
+	cat ${NET_INTERFACES_FILE} | awk '{print $1}' > ${TMP_NETIFS_LISTED}
+
+	local DEFAULT_INTERFACES=$(cat ${TMP_NETIFS_LISTED} | tr '\n' ',' | sed 's/,$//g')
+	local PREFERRED_INTERFACES=$(net_get_profile_conf "preferred_interfaces" ${DEFAULT_INTERFACES} ${NET_INTERFACES_FILE})
+
+	echo ${PREFERRED_INTERFACES} | tr ',' '\n' | awk -F'/' '{print $1}' | grep -v "^$" > ${TMP_NETIFS_PREFERRED}
+	INFO "preferred interfaces: $(YELLOW $(cat ${TMP_NETIFS_PREFERRED} | tr '\n' ' '))"
+
+	# Selected interfaces
+	local XS=($(echo ${PREFERRED_INTERFACES} | tr ',' '\n'))
+	# Non-selected interfaces
+	local YS=($(grep -F -x -v -f ${TMP_NETIFS_PREFERRED} ${TMP_NETIFS_LISTED}))
+
+	##
+	# Initialize those selected interfaces: bring up, dailup data link, and
+	# configure ip.
+	#
 	for x in "${XS[@]}"; do
 		local interface=$(echo ${x} | awk -F'/' '{print $1}')
 		[ "" == "${interface}" ] && continue
@@ -343,9 +360,23 @@ function initialize_network {
 
 		INFO "[$(YELLOW ${interface})] initialization - link: $(LIGHT_GREEN ${LINK_TYPE}), ip: $(BLUE ${IP_TYPE}) $(GRAY ${IP_ARGS})"
 
-		net_bring_up_interface ${interface} &&
+		net_bring_up_interface ${interface} true &&
 			net_dialup_datalink_${LINK_TYPE} ${interface} &&
 			net_configure_ip_${IP_TYPE} ${interface} ${IP_ARGS}
+	done
+
+	# INFO ${TMP_NETIFS_PREFERRED}
+	# cat ${TMP_NETIFS_PREFERRED} | awk '{printf "\t%s\n", $0}'
+	# INFO ${TMP_NETIFS_LISTED}
+	# cat ${TMP_NETIFS_LISTED} | awk '{printf "\t%s\n", $0}'
+	INFO "bring up these interfaces without initialization: $(YELLOW $(grep -F -x -v -f ${TMP_NETIFS_PREFERRED} ${TMP_NETIFS_LISTED}))"
+
+	##
+	# Initialize those interfaces that are not selected by profile,
+	# so only bring them up.
+	#
+	for y in "${YS[@]}"; do
+		net_bring_up_interface ${y} false
 	done
 	return 0
 }
