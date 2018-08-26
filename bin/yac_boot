@@ -2,10 +2,6 @@
 #
 ##DOC:	bootup yac system, including initiate wireless and generate /tmp/ttt_system
 
-function check_prerequisites {
-	check_tool_prerequisites ifconfig iwlist
-}
-
 function mount_directories {
 	mkdir -p ${PROFILE_LOG_DIR}
 	mkdir -p ${PROFILE_STORAGE_DIR}
@@ -29,13 +25,6 @@ function mount_directories {
 		INFO "mount $(LIGHT_GREEN ${PROFILE_CURRENT_DIR})"
 		mkdir -p ${PROFILE_CURRENT_LOG_DIR}
 	fi
-}
-
-function load_hooks {
-	local BOARD_SYS_HOOK="${YS_DIR}/etc/.yac"
-	local PROFILE_SYS_HOOK="${PROFILE_CURRENT_DIR}/etc/.yac"
-	[ -f "${BOARD_SYS_HOOK}" ] && source ${BOARD_SYS_HOOK} && INFO "source $(LIGHT_GREEN ${BOARD_SYS_HOOK})"
-	[ -f "${PROFILE_SYS_HOOK}" ] && source ${PROFILE_SYS_HOOK} && INFO "source $(LIGHT_GREEN ${PROFILE_SYS_HOOK})"
 }
 
 function output {
@@ -311,41 +300,13 @@ function run_init_scripts {
 	done
 }
 
-function get_profile_net_conf {
-	local NAME=$1
-	local DEFAULT=$2
-	local INFO=$3 # optional
-	[ "" == "${NAME}" ] && return 0
-	[ "" == "${DEFAULT}" ] && return 0
-	local VALUE=$(call_profile_hook get_net_conf ${NAME} ${DEFAULT} ${INFO} 2>/dev/null)
-	[ "0" != "$?" ] && echo "${DEFAULT}" && return 0
-	[ "" == "${VALUE}" ] && echo "${DEFAULT}" && return 0
-	echo "${VALUE}"
-}
-
-function call_board_hook {
-	# Invoke hook function from BOARD_SYS_HOOK (YS_DIR/etc/.yac)
-	#
-	call_func "yac_board_hook" $@
-}
-
-function call_profile_hook {
-	# Invoke hook function from PROFILE_SYS_HOOK (/PROFILE/current/etc/.yac)
-	#
-	call_func "yac_hook" $@
-}
-
-
 function notify_event {
 	call_board_hook boot $@
 	call_profile_hook boot $@
 }
 
-
 function yac_main {
 	source ${YAC_DIR}/externals/bash-utils/system
-	INFO "check_prerequisites"
-	check_prerequisites
 
 	# Mount all necessary directories from partitions other
 	# than boot partition.
@@ -370,7 +331,7 @@ function yac_main {
 	#	- filepath: `/mnt/app/profiles/[PROFILE]/current/etc/.yac`
 	#	- function: yac_hook()
 	#
-	INFO "mount_hooks"
+	INFO "load_hooks"
 	load_hooks
 
 	# Generate all required identities.

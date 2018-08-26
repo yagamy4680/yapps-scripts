@@ -1,6 +1,17 @@
 #!/bin/bash
 #
 
+function function_exist {
+	declare -f -F $1 > /dev/null
+	return $?
+}
+
+function call_func {
+	local FUNC=$1
+	shift
+	function_exist ${FUNC} && ${FUNC} $@
+}
+
 function get_env {
 	local NAME=$1
 	[ "" == "${NAME}" ] && return 0
@@ -77,7 +88,6 @@ function init_yac_variables {
 	initiate_nodejs_runtime_variables
 }
 
-
 function initiate_nodejs_runtime_variables {
 	# using `nodenv` to get the version and path of installed
 	# nodejs package.
@@ -102,6 +112,75 @@ function initiate_nodejs_runtime_variables {
 	export NODEJS_MODULE_DIR="${PROFILE_CURRENT_DIR}/runtimes/nodejs/${NODEJS_VERSION}"
 }
 
+function load_hooks {
+	##
+	# Assume the hook function `yac_board_hook()` exists in the BOARD_SYS_HOOK bash script
+	#
+	local BOARD_SYS_HOOK="${YS_DIR}/etc/.yac"
+	if [ -f "${BOARD_SYS_HOOK}" ]; then
+		source ${BOARD_SYS_HOOK}
+		INFO "source $(LIGHT_GREEN ${BOARD_SYS_HOOK})"
+		export BOARD_SYS_HOOK_LOADED=true
+	fi
+
+	##
+	# Assume the hook function `yac_hook()` exists in the PROFILE_SYS_HOOK bash script
+	#
+	local PROFILE_SYS_HOOK="${PROFILE_CURRENT_DIR}/etc/.yac"
+	if [ -f "${PROFILE_SYS_HOOK}" ]; then 
+		source ${PROFILE_SYS_HOOK}
+		INFO "source $(LIGHT_GREEN ${PROFILE_SYS_HOOK})"
+		export PROFILE_SYS_HOOK_LOADED=true
+	fi
+}
+
+function call_board_hook {
+	#
+	# Invoke hook function from BOARD_SYS_HOOK (YS_DIR/etc/.yac)
+	#
+	[ "true" == "${BOARD_SYS_HOOK_LOADED}" ] || return 1
+	call_func "yac_board_hook" $@
+}
+
+function call_profile_hook {
+	#
+	# Invoke hook function from PROFILE_SYS_HOOK (/PROFILE/current/etc/.yac)
+	#
+	[ "true" == "${PROFILE_SYS_HOOK_LOADED}" ] || return 1
+	call_func "yac_hook" $@
+}
+
+function get_conf_from_hook {
+	local TYPE=$1
+	local NAME=$2
+	local DEFAULT=$3
+	local INFO=$4 # optional
+	case "${TYPE}" in
+		board)
+			local HOOK_FUNC="call_board_hook"
+			;;
+		profile)
+			local HOOK_FUNC="call_profile_hook"
+			;;
+		*)
+			return 0
+			;;
+	esac
+	[ "" == "${NAME}" ] && return 0
+	[ "" == "${DEFAULT}" ] && return 0
+	local VALUE=$(${HOOK_FUNC} get_conf ${NAME} ${DEFAULT} ${INFO} 2>/dev/null)
+	[ "0" != "$?" ] && echo "${DEFAULT}" && return 0
+	[ "" == "${VALUE}" ] && echo "${DEFAULT}" && return 0
+	echo "${VALUE}"
+}
+
+function get_board_conf {
+	get_conf_from_hook board $@
+}
+
+function get_profile_conf {
+	get_conf_from_hook profile $@
+}
 
 function download_nodejs_modules {
 	local CURRENT=$(pwd)
@@ -140,17 +219,6 @@ function download_nodejs_modules {
 	[ "0" != "$?" ] && INFO "failed to uncompress ${GZIPPED_FILE}" && rm -f ${GZIPPED_FILE} && return 1
 	INFO "use downloaded module archive"
 	rm -f ${GZIPPED_FILE}
-}
-
-function function_exist {
-	declare -f -F $1 > /dev/null
-	return $?
-}
-
-function call_func {
-	local FUNC=$1
-	shift
-	function_exist ${FUNC} && ${FUNC} $@
 }
 
 function load_configurations {
