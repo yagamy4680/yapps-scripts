@@ -45,8 +45,18 @@ function test_load_configurations {
 	INFO "YAPPS_SYS_AA: ${YAPPS_SYS_AA}"
 }
 
+function test_load_hooks {
+	load_hooks
+}
+
+function test_get_profile_conf {
+	load_hooks
+	local CONF=$(get_profile_conf "net_preferred_interfaces" $(cat /tmp/interfaces.txt | awk '{print $1}' | tr '\n' ',') /tmp/interfaces.txt)
+	INFO "CONF => ${CONF}"
+}
+
 function yac_main {
 	NAME=$1
 	shift
-	${NAME} $@
+	test_${NAME} $@
 }

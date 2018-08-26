@@ -104,18 +104,6 @@ function net_detect_interfaces {
 	cat ${OUTPUT_FILE} | awk '{printf "\t%s\n", $0}' | tr ' ' '\t'
 }
 
-function net_get_profile_conf {
-	local NAME=$1
-	local DEFAULT=$2
-	local INFO=$3 # optional
-	[ "" == "${NAME}" ] && return 0
-	[ "" == "${DEFAULT}" ] && return 0
-	local VALUE=$(call_profile_hook get_net_conf ${NAME} ${DEFAULT} ${INFO} 2>/dev/null)
-	[ "0" != "$?" ] && echo "${DEFAULT}" && return 0
-	[ "" == "${VALUE}" ] && echo "${DEFAULT}" && return 0
-	echo "${VALUE}"
-}
-
 function net_bring_up_interface {
 	local COUNTER="5"
 	local NETIF=$1
@@ -306,7 +294,7 @@ function initialize_network {
 	cat ${NET_INTERFACES_FILE} | awk '{print $1}' > ${TMP_NETIFS_LISTED}
 
 	local DEFAULT_INTERFACES=$(cat ${TMP_NETIFS_LISTED} | tr '\n' ',' | sed 's/,$//g')
-	local PREFERRED_INTERFACES=$(net_get_profile_conf "preferred_interfaces" ${DEFAULT_INTERFACES} ${NET_INTERFACES_FILE})
+	local PREFERRED_INTERFACES=$(get_profile_conf "net_preferred_interfaces" ${DEFAULT_INTERFACES} ${NET_INTERFACES_FILE})
 
 	echo ${PREFERRED_INTERFACES} | tr ',' '\n' | awk -F'/' '{print $1}' | grep -v "^$" > ${TMP_NETIFS_PREFERRED}
 	INFO "preferred interfaces: $(YELLOW $(cat ${TMP_NETIFS_PREFERRED} | tr '\n' ' '))"
