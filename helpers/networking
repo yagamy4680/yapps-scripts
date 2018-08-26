@@ -282,6 +282,11 @@ function net_configure_ip_dhcp {
 }
 
 function initialize_network {
+	export HOOK_STAGE="boot"
+
+	INFO "initialize_network => try profile's pre_network_init"
+	call_profile_hook "pre_network_init"
+
 	source ${YAC_LIB_DIR}/wireless_connect
 
 	export NET_INTERFACES_FILE="/tmp/interfaces.txt"
@@ -366,5 +371,7 @@ function initialize_network {
 	for y in "${YS[@]}"; do
 		net_bring_up_interface ${y} false
 	done
+
+	unset HOOK_STAGE
 	return 0
 }

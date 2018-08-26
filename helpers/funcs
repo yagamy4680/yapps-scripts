@@ -139,7 +139,7 @@ function call_board_hook {
 	# Invoke hook function from BOARD_SYS_HOOK (YS_DIR/etc/.yac)
 	#
 	[ "true" == "${BOARD_SYS_HOOK_LOADED}" ] || return 1
-	call_func "yac_board_hook" $@
+	HOOK_NAME=board call_func "yac_board_hook" $@
 }
 
 function call_profile_hook {
@@ -147,7 +147,7 @@ function call_profile_hook {
 	# Invoke hook function from PROFILE_SYS_HOOK (/PROFILE/current/etc/.yac)
 	#
 	[ "true" == "${PROFILE_SYS_HOOK_LOADED}" ] || return 1
-	call_func "yac_hook" $@
+	HOOK_NAME=profile call_func "yac_hook" $@
 }
 
 function get_conf_from_hook {
