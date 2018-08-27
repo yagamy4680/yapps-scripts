@@ -233,11 +233,92 @@ function net_wait_datalink {
 	fi
 }
 
+#
+# Configure the network interface with static ip, for example:
+#
+# - eth0/ethernet/static/192.168.20.1/24
+#     * address  : 192.168.20.1
+#     * netmask  : 255.255.255.0
+#     * broadcast: 192.168.20.255
+#     * network  : 192.168.20.0/24
+#     * gateway  : n/a
+#     * commands
+#          `ip addr add 192.168.20.1/24 broadcast 192.168.20.255 dev eth0`
+#
+# - eth1/ethernet/static/192.168.1.100/24/192.168.1.1
+#     * address  : 192.168.1.100
+#     * netmask  : 255.255.255.0
+#     * broadcast: 192.168.1.255
+#     * network  : 192.168.1.0/24
+#     * gateway  : 192.168.1.1
+#     * commands
+#           `ip addr add 192.168.1.100/24 broadcast 192.168.1.255 dev eth1`
+#           `ip route add 192.168.1.0/24 via 192.168.1.1 dev eth1`
+#
+# - eth2/ethernet/static/172.31.20.80/19/172.31.16.1
+#      * address  : 172.31.20.80
+#      * netmask  : 255.255.224.0
+#      * broadcast: 172.31.31.255
+#      * network  : 172.31.0.0/19
+#      * gateway  : 172.31.16.1
+#      * commands
+#           `ip addr add 172.31.20.80/19 broadcast 172.31.31.255 dev eth2`
+#           `ip route add 172.31.0.0/19 via 172.31.16.1 dev eth2
+#
+# (BeagleBone default USB gadget network)
+# - usb0/ethernet/static/192.168.7.2/30/192.168.7.1
+#      * address  : 192.168.7.2
+#      * netmask  : 255.255.255.252
+#      * broadcast: 192.168.7.3
+#      * network  : 192.168.7.0/30
+#      * gateway  : 172.168.7.1
+#      * commands
+#            `ip addr add 192.168.7.2/30 broadcast 192.168.7.3 dev usb0`
+#            `ip route add 192.168.7.0/30 via 172.168.7.1 dev usb0`
+#
+#
 function net_configure_ip_static {
-	local NETIF=$1
-	# [todo] implement static ip configuration.
+	local NETIF=$1         # e.g. eth0, eth1, usb0, ...
+	local ADDRESS=$2       # e.g. 192.168.20.1, 192.168.7.2, 172.32.20.80 
+	local NETMASK_BITS=$3  # e.g. 30, 24, 19, 16, ...
+	local GATEWAY=$4       # e.g. 192.168.20.1, 192.168.7.1, 172.32.16.1
+	local NAME_SERVER=$5   # e.g. 192.168.20.1, 8.8.8.8, 1.1.1.1
+	INFO "net_configure_ip_static $(PURPLE $@)"
+
+	[ "" == "${NETIF}" ] && INFO "net_configure_ip_static: missing interface as 1st argument" && return 1
+	[ "" == "${ADDRESS}" ] && INFO "[$(YELLOW ${NETIF})]: static-addressing => missing ip address as 2nd argument" && return 2
+	[ "" == "${NETMASK_BITS}" ] && INFO "[$(YELLOW ${NETIF})]: static-addressing => missing netmask bits as 3rd argument" && return 3
+	[ "" == "${GATEWAY}" ] && INFO "[$(YELLOW ${NETIF})]: static-addressing => missign gateway as 4th argument, ignore it"
+	[ "" == "${NAME_SERVER}" ] && INFO "[$(YELLOW ${NETIF})]: static-addressing => missign DNS server as 5th argument, ignore it"
+
+	local CONF_FILE="/tmp/${NETIF}.yml"
+	local TMP_FILE=$(mktemp /tmp/XXXXXX)
+	/usr/bin/ipcalc -nb ${ADDRESS}/${NETMASK_BITS} > ${TMP_FILE}
+
+	local BROADCAST=$(cat ${TMP_FILE} | grep "^Broadcast:" | awk '{print $2}')
+
+	RUN_CMD_STREAMING "ip addr add ${ADDRESS}/${NETMASK_BITS} broadcast ${BROADCAST} dev ${NETIF}"
+
+	INFO "[$(YELLOW ${NETIF})]: configurations:"
+cat <<__EOF__ | tee -a ${CONF_FILE} | awk '{printf "\t%s\n", $0}'
+interface: ${NETIF}
+address: ${ADDRESS}
+netmask_bits: ${NETMASK_BITS}
+gateway: ${GATEWAY}
+name_server: ${NAME_SERVER}
+__EOF__
+
+	INFO "[$(YELLOW ${NETIF})] ifconfig: "
+	ifconfig ${NETIF} | awk '{printf "\t%s\n", $0}'
 }
 
+#
+# Configure the network interface with `dhclient`, for example:
+#
+# - eth0/ethernet/dhcp
+# - usb0/ethernet/dhcp
+# - wlan0/wireless/dhcp
+#
 function net_configure_ip_dhcp {
 	local NETIF=$1
 	local DHCLIENT_PID_FILE="/run/dhclient.${NETIF}.pid"
