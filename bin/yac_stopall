@@ -3,19 +3,27 @@
 ##DOC:	stop all (nodejs) apps in current profile.
 
 function yac_main {
-	# Kill all daemon monitor scripts
-	#
-	# [todo] in the future, yapps shall exit with 230 code, then all daemon
-	#        monitor scripts will exit automatically. No need to kill them.
-	#
-	ps aux | grep "${BOARD_PROFILE}/current/daemons" | grep bash | awk '{print $2}' | xargs -I{} sh -c "kill {}"
+	[ ! -f "${PROFILE_APP_LISTFILE}" ] && INFO "missing ${PROFILE_APP_LISTFILE} for stopping all apps" && return 1
+	source ${YAC_LIB_DIR}/system
 
-	# Kill each running app
-	#
-	ENTRIES=($(find /${BOARD_PROFILE}/current/apps/ -name 'index.js'))
-	for entry in "${ENTRIES[@]}" ; do
-		PID=$(ps aux | grep ${entry} | grep -v grep | awk '{print $2}')
-		NAME=$(basename $(dirname ${entry}))
-		[ "" != "${PID}" ] && INFO "stopping $(PURPLE ${NAME}) (pid: ${PID})" && kill ${PID}
+	local APPS=($(tac ${PROFILE_APP_LISTFILE}))
+	for app in "${APPS[@]}" ; do
+		local MONITOR_PID_FILE=$(GET_DAEMON_CONFIG ${app} ppid_file)
+		[ ! -f "${MONITOR_PID_FILE}" ] && INFO "$(LIGHT_GREEN ${app}): missing ppid file => ${MONITOR_PID_FILE}" && continue
+		local MONITOR_PID=$(cat ${MONITOR_PID_FILE})
+		[ "" == "${MONITOR_PID}" ] && INFO "$(LIGHT_GREEN ${app}): empty ppid file ${MONITOR_PID_FILE}" && continue
+		INFO "$(LIGHT_GREEN ${app}): kill bash monitor process (pid: $(PURPLE ${MONITOR_PID}))"
+		kill ${MONITOR_PID}
+
+		local APP_PID_FILE=$(GET_DAEMON_CONFIG ${app} pid_file)
+		[ ! -f "${APP_PID_FILE}" ] && INFO "$(LIGHT_GREEN ${app}): missing pid file => ${APP_PID_FILE}" && continue
+		local APP_PID=$(cat ${APP_PID_FILE})
+		[ "" == "${APP_PID}" ] && INFO "$(LIGHT_GREEN ${app}): empty pid file ${APP_PID_FILE}" && continue
+		INFO "$(LIGHT_GREEN ${app}): kill app process (pid: $(PURPLE ${APP_PID}))"
+		#
+		# [todo] in the future, yapps shall exit with 230 code, then all daemon
+		#        monitor scripts will exit automatically. No need to kill them.
+		#
+		kill ${APP_PID}
 	done
 }

@@ -3,13 +3,15 @@
 ##DOC:	wait until the app is ready.
 
 function yac_main {
-	APP=$1
-	APP_DIR="${PROFILE_CURRENT_DIR}/apps/${APP}"
+	source ${YAC_LIB_DIR}/system
+
+	local APP=$1
+	local APP_DIR="${PROFILE_CURRENT_DIR}/apps/${APP}"
+	local APP_UNIXSOCK_FILE=$(GET_DAEMON_CONFIG ${APP} unixsock_file)
 
 	[ ! -d "${APP_DIR}" ] && ERR "no such app $(RED ${APP})" && exit 1
 
 	TIMES=0
-
 	while [ "" == "$(ps aux | grep ${PROFILE_CURRENT_DIR}/apps/${APP} | grep -v grep)" ]; do
 		INFO "\twaiting for app instance ..."
 		sleep 2
@@ -18,12 +20,11 @@ function yac_main {
 	done
 
 	TIMES=0
-	while [ ! -S "/tmp/yap/${APP}.system.sock" ]; do
+	while [ ! -S "${APP_UNIXSOCK_FILE}" ]; do
 		INFO "\twaiting for app ready ..."
 		sleep 1
 		TIMES=$(($TIMES+2))
-		[ "${TIMES}" -gt 180 ] && ERR "wait for 180 seconds but no app unix sock is ready" && exit 1
-
+		[ "${TIMES}" -gt 180 ] && ERR "wait for 180 seconds but no app unix sock (${APP_UNIXSOCK_FILE}) is ready" && exit 1
 	done
 
 	INFO "\t$(LIGHT_GREEN ${APP}) ready"

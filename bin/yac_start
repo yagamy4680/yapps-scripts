@@ -18,7 +18,7 @@ function yac_main {
 
 	mkdir -p ${PROFILE_LOG_APP_DIR}
 
-	local TIME=$(date '+%Y%m%d-%H%M%S')
+	local TIME=$(date '+%Y%m%d%H%M')
 	local INDEX=$(find ${PROFILE_LOG_APP_DIR} -name "${APP}*" | awk -F'.' '{print $4, $2}' | grep "^log" | awk '{print $2}' | sort -u | tail -n1)
 
 	if [ "" == "${INDEX}" ]; then
@@ -33,15 +33,23 @@ function yac_main {
 	INFO "\tNODE_PATH = $(PURPLE ${NODEJS_MODULE_DIR}/node_modules)"
 	INFO "\t$(YELLOW ${RUNTIME_NODEJS_DIR}/bin/node) $(BLUE ${APP_DIR}/index.js) $(LIGHT_GREEN $@)"
 
-	# Remove unix-sock for the app.
-	rm -f /tmp/yap/${APP}.system.sock
+	local APP_PID_FILE=$(GET_DAEMON_CONFIG ${APP} pid_file)
+	local APP_UNIXSOCK_FILE=$(GET_DAEMON_CONFIG ${APP} unixsock_file)
+
+	# Make sure app-run directory exists
+	mkdir -p $(dirname ${APP_PID_FILE})
+	mkdir -p $(dirname ${APP_UNIXSOCK_FILE})
+
+	# Clean resource files created by last run
+	rm -f ${APP_PID_FILE}
+	rm -f ${APP_UNIXSOCK_FILE}
 
 	local APP_RUNTIME_EXECUTABLE="${RUNTIME_NODEJS_DIR}/bin/node"
 	local APP_RUNTIME_OPTS="--expose-gc"  # All V8 flags can be found by the command `node --v8-options`
 	local APP_RUNTIME_MODULE_PATH="${NODEJS_MODULE_DIR}/node_modules"
 	local APP_ENTRY="${APP_DIR}/index.js"
 	local APP_LOGFILE="${LOG_FILE}"
-	local APP_OPTS="-d"
+	local APP_OPTS="-d -p ${APP_PID_FILE} -u ${APP_UNIXSOCK_FILE}"
 	[ -f "${APP_DIR}/config/${BOARD_PROFILE_ENV}.json" ] && APP_OPTS="${APP_OPTS} -c ${BOARD_PROFILE_ENV}"
 	INFO "APP_OPTS = ${APP_OPTS}"
 
@@ -57,6 +65,10 @@ function yac_main {
 	rm -f ${DST_FILE}
 	ln -s ${LOG_FILE} ${DST_FILE}
 	INFO "\tLOG: $(BLUE ${DST_FILE})"
+
+	# Output app to the `/tmp/yapps.txt`
+	echo ${APP} >> ${PROFILE_APP_LISTFILE}
+	INFO "\tTMP: ${PROFILE_APP_LISTFILE} (${APP})"
 }
 
 

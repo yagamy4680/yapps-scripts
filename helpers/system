@@ -2,6 +2,23 @@
 #
 ##DOC:	startup an app in current profile.
 
+function GET_DAEMON_CONFIG {
+	local APP=$1
+	local KEY=$2
+	case "${KEY}" in
+		pid_file)
+			echo "${YAC_RUN_DIR}/${APP}.pid"
+			;;
+		ppid_file)
+			echo "${YAC_RUN_DIR}/${APP}.pid.ppid"
+			;;
+		unixsock_file)
+			echo "${YAC_RUN_DIR}/${APP}.sock"
+			;;
+		*)
+			;;
+	esac
+}
 
 function RUN_DAEMON {
 	DAEMON_DIR="${PROFILE_CURRENT_DIR}/daemons"

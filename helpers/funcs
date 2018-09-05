@@ -32,6 +32,7 @@ function init_yac_variables {
 	export YAC_DIR=$(pwd)
 	export YAC_BIN_DIR="${YAC_DIR}/bin"
 	export YAC_LIB_DIR="${YAC_DIR}/helpers"
+	export YAC_RUN_DIR="/var/run/yapps"
 	cd ${TMP}
 
 	[ "" == "${YS_DIR}" ] && export YS_DIR=$(get_env YS_DIR)
@@ -86,6 +87,9 @@ function init_yac_variables {
 
 	export RUNTIME_DIR="${YS_APP_DIR}/runtimes"
 	initiate_nodejs_runtime_variables
+
+	export PROFILE_APP_LISTFILE="/tmp/yapps.txt"
+	initiate_app_environment
 }
 
 function initiate_nodejs_runtime_variables {
@@ -110,6 +114,10 @@ function initiate_nodejs_runtime_variables {
 	cd ${MY_TMP}
 
 	export NODEJS_MODULE_DIR="${PROFILE_CURRENT_DIR}/runtimes/nodejs/${NODEJS_VERSION}"
+}
+
+function initiate_app_environment {
+	[ -d "${YAC_RUN_DIR}" ] || mkdir -p ${YAC_RUN_DIR}
 }
 
 function load_hooks {
