@@ -12,18 +12,28 @@ function yac_main {
 		[ ! -f "${MONITOR_PID_FILE}" ] && INFO "$(LIGHT_GREEN ${app}): missing ppid file => ${MONITOR_PID_FILE}" && continue
 		local MONITOR_PID=$(cat ${MONITOR_PID_FILE})
 		[ "" == "${MONITOR_PID}" ] && INFO "$(LIGHT_GREEN ${app}): empty ppid file ${MONITOR_PID_FILE}" && continue
-		INFO "$(LIGHT_GREEN ${app}): kill bash monitor process (pid: $(PURPLE ${MONITOR_PID}))"
-		kill ${MONITOR_PID}
+		if [ -d "/proc/${MONITOR_PID}" ]; then
+			INFO "$(LIGHT_GREEN ${app}): kill bash monitor process (pid: $(PURPLE ${MONITOR_PID}))"
+			kill ${MONITOR_PID}
+		else
+			INFO "$(LIGHT_GREEN ${app}): ignore to kill bash monitor process (pid: $(PURPLE ${MONITOR_PID}))"
+		fi
 
 		local APP_PID_FILE=$(GET_DAEMON_CONFIG ${app} pid_file)
 		[ ! -f "${APP_PID_FILE}" ] && INFO "$(LIGHT_GREEN ${app}): missing pid file => ${APP_PID_FILE}" && continue
 		local APP_PID=$(cat ${APP_PID_FILE})
 		[ "" == "${APP_PID}" ] && INFO "$(LIGHT_GREEN ${app}): empty pid file ${APP_PID_FILE}" && continue
-		INFO "$(LIGHT_GREEN ${app}): kill app process (pid: $(PURPLE ${APP_PID}))"
-		#
-		# [todo] in the future, yapps shall exit with 230 code, then all daemon
-		#        monitor scripts will exit automatically. No need to kill them.
-		#
-		kill ${APP_PID}
+		if [ -d "/proc/${APP_PID}" ]; then
+			#
+			# [todo] in the future, yapps shall exit with 230 code, then all daemon
+			#        monitor scripts will exit automatically. No need to kill them.
+			#
+			INFO "$(LIGHT_GREEN ${app}): kill app process (pid: $(PURPLE ${APP_PID}))"
+			kill ${APP_PID}
+		else
+			INFO "$(LIGHT_GREEN ${app}): ignore to kill app process (pid: $(PURPLE ${APP_PID}))"
+		fi
 	done
+
+	rm -f ${PROFILE_APP_LISTFILE}
 }
