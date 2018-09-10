@@ -1,0 +1,51 @@
+#!/bin/bash
+#
+
+function log_daemon {
+	local PREFIX="yapps/$(basename $0)"
+	INFO "${PREFIX}: $@" >  /dev/ttyO0
+	INFO "${PREFIX}: $@" >> ${DAEMON_SHARE_LOG}
+	INFO "${PREFIX}: $@"
+	echo -e "${PREFIX}: $@" | sed -r 's/'$(echo -e "\033")'\[[0-9]{1,2}(;([0-9]{1,2})?)?[mK]//g' > /dev/kmsg
+}
+
+function run_daemon {
+	export LOG_LINE_END="\\r"
+	local EXIT_CODE="0"
+	while true; do
+		log_daemon "$(LIGHT_GREEN $@)"
+		$@; EXIT_CODE=$?
+		log_daemon "exit-code: ${EXIT_CODE}"
+		case "${EXIT_CODE}" in
+			0)
+				log_daemon "peaceful shutdown with exit-code (0)"
+				break
+				;;
+			96)
+				##
+				# Peaceful shutdown in Yapps. https://github.com/yagamy4680/yapps/blob/master/lib/classes/BaseApp.ls#L226-L231
+				#
+				log_daemon "peaceful restart with exit-code (96)"
+				continue
+				;;
+			137)
+				##
+				# Forced shutdown in nodejs: https://nodejs.org/api/process.html#process_signal_events
+				#
+				log_daemon "forcedly shutdown with exit-code (137), maybe caused by SIGKILL(9)"
+				break
+				;;
+			140)
+				##
+				# Peaceful restart in order to reload configs in Yapps.
+				#
+				log_daemon "peaceful restart to reload configs with exit-code (140)"
+				continue
+				;;
+			*)
+				log_daemon "unexpected shutdown with code (${EXIT_CODE})"
+				continue
+				;;
+		esac
+	done
+}
