@@ -20,18 +20,34 @@ function GET_DAEMON_CONFIG {
 	esac
 }
 
+function DUMP_YAPPS_VARIABLES {
+	local TMP_FILE=$(mktemp /tmp/XXXXXX)
+	local NAMES=($(env | grep "^YAPPS_" | sort | awk -F'=' '{print $1}'))
+	for name in "${NAMES[@]}"; do
+		local value=${!name}
+		echo -e "\texport ${name}=\"${value}\""
+	done
+}
+
 function GENERATE_NODEJS_DAEMON_SCRIPT {
 cat <<__EOF__
 #!/bin/bash
 #
 $(cat ${YAC_DIR}/helpers/nodejs_daemon | grep -v "^#")
 
+# Yapps Variable Initialization
+#
+function init_yapps_variables {
+$(DUMP_YAPPS_VARIABLES)
+	return 0
+}
+
 # External BASH scripts
 #
 source ${YAC_DIR}/externals/bash-utils/verbose
 init_verbose \$0
 
-# Variables
+# System Variables
 #
 export NODE_PATH="${APP_RUNTIME_MODULE_PATH}"
 export DAEMON_SHARE_LOG="${DAEMON_SHARE_LOG}"

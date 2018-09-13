@@ -13,9 +13,20 @@ function run_daemon {
 	export LOG_LINE_END="\\r"
 	local EXIT_CODE="0"
 	while true; do
+		# Initialize YAPPS_xxx environment variables, such as
+		#   - YAPPS_LOGGER_PRECISE_TIMESTAMP
+		#   - YAPPS_DUMP_LOADED_CONFIG
+		#   - YAPPS_TOE_LINUX_BOOTS
+		#   - YAPPS_EXTRA_PLUGINS
+		#
+		init_yapps_variables
+
+		# Run nodejs daemon synchronously, and capture its exit-code.
+		#
 		log_daemon "$(LIGHT_GREEN $@)"
 		$@; EXIT_CODE=$?
 		log_daemon "exit-code: ${EXIT_CODE}"
+
 		case "${EXIT_CODE}" in
 			0)
 				log_daemon "peaceful shutdown with exit-code (0)"
