@@ -19,16 +19,18 @@ function yac_main {
 	mkdir -p ${PROFILE_LOG_APP_DIR}
 
 	local TIME=$(date '+%Y%m%d%H%M')
-	local INDEX=$(find ${PROFILE_LOG_APP_DIR} -name "${APP}*" | awk -F'.' '{print $4, $2}' | grep "^log" | awk '{print $2}' | sort -u | tail -n1)
-
-	if [ "" == "${INDEX}" ]; then
-		INDEX="000000"
-	else
-		INDEX=$(echo ${INDEX} | sed 's/^0*//g')
-		INDEX=$(printf "%.6d" $((${INDEX} + 1)))
+	local BOOTS=$(cat /tmp/ttt_system | grep "^profile_boots" | awk '{print $2}')
+	if [ "" == "${BOOTS}" ]; then
+		BOOTS=$(find ${PROFILE_LOG_APP_DIR} -name "${APP}*" | awk -F'.' '{print $4, $2}' | grep "^log" | awk '{print $2}' | sort -u | tail -n1)
+		if [ "" == "${INDEX}" ]; then
+			BOOTS="000000"
+		else
+			BOOTS=$(echo ${INDEX} | sed 's/^0*//g')
+			BOOTS=$(printf "%.6d" $((${INDEX} + 1)))
+		fi
 	fi
 	local DST_FILE="${PROFILE_CURRENT_DIR}/logs/${APP}.log"
-	local LOG_FILE="${PROFILE_LOG_APP_DIR}/${APP}.${INDEX}.${TIME}.log"
+	local LOG_FILE="${PROFILE_LOG_APP_DIR}/${APP}.${BOOTS}.${TIME}.log"
 
 	INFO "\tNODE_PATH = $(PURPLE ${NODEJS_MODULE_DIR}/node_modules)"
 	INFO "\t$(YELLOW ${RUNTIME_NODEJS_DIR}/bin/node) $(BLUE ${APP_DIR}/index.js) $(LIGHT_GREEN $@)"
@@ -60,6 +62,8 @@ function yac_main {
 		APP_ENTRY=${APP_ENTRY} \
 		APP_LOGFILE=${APP_LOGFILE} \
 		APP_OPTS="${APP_OPTS}" \
+		YAPPS_TOE_LINUX_BOOTS="${BOOTS}" \
+		YAPPS_DUMP_LOADED_CONFIG="false" \
 		RUN_NODE_APP_DAEMON $@
 
 	rm -f ${DST_FILE}
