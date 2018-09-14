@@ -2,30 +2,58 @@
 #
 
 function log_daemon {
-	local PREFIX="yapps/$(basename $0)"
-	INFO "${PREFIX}: $@" >  /dev/ttyO0
-	INFO "${PREFIX}: $@" >> ${DAEMON_SHARE_LOG}
-	INFO "${PREFIX}: $@"
-	echo -e "${PREFIX}: $@" | sed -r 's/'$(echo -e "\033")'\[[0-9]{1,2}(;([0-9]{1,2})?)?[mK]//g' > /dev/kmsg
+	INFO "${LOG_PREFIX}: $@" >  /dev/ttyO0
+	INFO "${LOG_PREFIX}: $@" >> ${DAEMON_SHARE_LOG}
+	INFO "${LOG_PREFIX}: $@"
+	echo -e "${LOG_PREFIX}: $@" | sed -r 's/'$(echo -e "\033")'\[[0-9]{1,2}(;([0-9]{1,2})?)?[mK]//g' > /dev/kmsg
+}
+
+function fn_exist {
+	declare -f -F $1 > /dev/null
+	return $?
 }
 
 function run_daemon {
 	export LOG_LINE_END="\\r"
+	export LOG_PREFIX="yapps/$(basename $0)"
 	local EXIT_CODE="0"
+	local HOOK_ENTER="yapps_launch_hook_enter"
+	local HOOK_EXIT="yapps_launch_hook_exit"
+
 	while true; do
 		# Initialize YAPPS_xxx environment variables, such as
 		#   - YAPPS_LOGGER_PRECISE_TIMESTAMP
 		#   - YAPPS_DUMP_LOADED_CONFIG
 		#   - YAPPS_TOE_LINUX_BOOTS
 		#   - YAPPS_EXTRA_PLUGINS
+		#   - YAPPS_DAEMON_HOOK_SCRIPT
 		#
 		init_yapps_variables
+
+		# Load hook script for the daemon
+		#
+		if [ "" != "${YAPPS_DAEMON_HOOK_SCRIPT}" ] && [ -f "${YAPPS_DAEMON_HOOK_SCRIPT}" ]; then
+			INFO "$0 loads hook script $(YELLOW ${YAPPS_DAEMON_HOOK_SCRIPT}) ..."
+			source ${YAPPS_DAEMON_HOOK_SCRIPT}
+		else
+			log_daemon "missing hook script $(YELLOW ${YAPPS_DAEMON_HOOK_SCRIPT}) => ignored."
+		fi
+
+		# Run `yapps_launch_hook_enter()` if available.
+		#
+		fn_exist ${HOOK_ENTER} && INFO "[$(GRAY ${YAPPS_DAEMON_HOOK_SCRIPT})] $(LIGHT_GREEN ${HOOK_ENTER}) $(BLUE $@)" && ${HOOK_ENTER} $@
 
 		# Run nodejs daemon synchronously, and capture its exit-code.
 		#
 		log_daemon "$(LIGHT_GREEN $@)"
+		echo "YYY-------------------------"
 		$@; EXIT_CODE=$?
+		echo "ZZZ-------------------------"
 		log_daemon "exit-code: ${EXIT_CODE}"
+
+		# Run `yapps_launch_hook_exit()` if available.
+		#
+		fn_exist ${HOOK_EXIT} && INFO "[$(GRAY ${YAPPS_DAEMON_HOOK_SCRIPT})] $(LIGHT_GREEN ${HOOK_EXIT}) $(BLUE ${EXIT_CODE})" && ${HOOK_EXIT} ${EXIT_CODE}
 
 		case "${EXIT_CODE}" in
 			0)
