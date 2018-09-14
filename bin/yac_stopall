@@ -12,26 +12,32 @@ function yac_main {
 		[ ! -f "${MONITOR_PID_FILE}" ] && INFO "$(LIGHT_GREEN ${app}): missing ppid file => ${MONITOR_PID_FILE}" && continue
 		local MONITOR_PID=$(cat ${MONITOR_PID_FILE})
 		[ "" == "${MONITOR_PID}" ] && INFO "$(LIGHT_GREEN ${app}): empty ppid file ${MONITOR_PID_FILE}" && continue
-		if [ -d "/proc/${MONITOR_PID}" ]; then
-			INFO "$(LIGHT_GREEN ${app}): kill bash monitor process (pid: $(PURPLE ${MONITOR_PID}))"
-			kill ${MONITOR_PID}
-		else
-			INFO "$(LIGHT_GREEN ${app}): ignore to kill bash monitor process (pid: $(PURPLE ${MONITOR_PID}))"
-		fi
 
 		local APP_PID_FILE=$(GET_DAEMON_CONFIG ${app} pid_file)
 		[ ! -f "${APP_PID_FILE}" ] && INFO "$(LIGHT_GREEN ${app}): missing pid file => ${APP_PID_FILE}" && continue
 		local APP_PID=$(cat ${APP_PID_FILE})
 		[ "" == "${APP_PID}" ] && INFO "$(LIGHT_GREEN ${app}): empty pid file ${APP_PID_FILE}" && continue
+
+		local UNIXSOCK_FILE=$(GET_DAEMON_CONFIG ${app} unixsock_file)
+		[ ! -S "${UNIXSOCK_FILE}" ] && INFO "$(LIGHT_GREEN ${app}): missing unixsock file => ${UNIXSOCK_FILE}" && continue
+
+		# send `shutdown` command to the unixsock server of that daemon.
+		#
+		INFO "$(LIGHT_GREEN ${app}): sending $(RED shutdown) command to $(BLUE ${UNIXSOCK_FILE})"
+		echo -e "\nshutdown\n" | socat - unix-connect:${UNIXSOCK_FILE}
+
+		local COUNTER="12"
+		while true; do
+			[ ! -d "/proc/${APP_PID}" ] && break
+			COUNTER=$(($COUNTER-1))
+			[ "$COUNTER" -lt "1" ] && INFO "$(LIGHT_GREEN ${app}): wait for shutdown but timeout" && break
+			INFO "$(LIGHT_GREEN ${app}): wait for shutdown (${COUNTER} seconds ...)"
+			sleep 1
+		done
+
 		if [ -d "/proc/${APP_PID}" ]; then
-			#
-			# [todo] in the future, yapps shall exit with 230 code, then all daemon
-			#        monitor scripts will exit automatically. No need to kill them.
-			#
-			INFO "$(LIGHT_GREEN ${app}): kill app process (pid: $(PURPLE ${APP_PID}))"
-			kill ${APP_PID}
-		else
-			INFO "$(LIGHT_GREEN ${app}): ignore to kill app process (pid: $(PURPLE ${APP_PID}))"
+			INFO "$(LIGHT_GREEN ${app}): kill app process (pid: $(PURPLE ${APP_PID})) because it still exists"
+			kill -9 ${APP_PID}
 		fi
 	done
 
