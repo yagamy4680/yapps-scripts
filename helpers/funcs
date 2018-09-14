@@ -236,7 +236,6 @@ function load_configurations {
 	local CONF="/tmp/yapps.conf.sh"
 	local GEN_CONF="${YAC_LIB_DIR}/gen_conf.py"
 	[ -f "${CONF}" ] && source ${CONF} && return
-	[ "" == "${PROFILE_CONF}" ] && PROFILE_CONF="/tmp/aa"
 
 	PREFIX=YAPPS_SYS_ ${GEN_CONF} ${CONF} ${DEFAULT_CONF} ${BOARD_SYS_CONF} ${PROFILE_SYS_CONF}
 	if [ "0" == "$?" ]; then

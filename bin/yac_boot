@@ -55,7 +55,7 @@ cat << __EOF__ > $2
 #!/bin/bash
 ntpdate -b $1
 echo "\$?" > ${BOOT_NTP_SYNC}
-date > /tmp/aa
+date > /tmp/boot_ntp_date.txt
 __EOF__
 chmod +x $2
 }
