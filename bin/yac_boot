@@ -41,12 +41,12 @@ base_version	${BOARD_BASE_VERSION}
 profile	${BOARD_PROFILE}
 profile_version	${BOARD_PROFILE_VERSION}
 profile_env	${BOARD_PROFILE_ENV}
+profile_boots	${BOARD_PROFILE_BOOTS}
 board	${BOARD}
 $(call_board_hook gen_ttt_system_for_board)
 $(call_profile_hook gen_ttt_system_for_profile)
 __EOF__
 }
-
 
 function generate_ntp_script {
 [ "" == "$1" ] && return
@@ -59,6 +59,8 @@ date > /tmp/aa
 __EOF__
 chmod +x $2
 }
+
+function generate_
 
 # Generate 3 variables, and export them:
 #    - BOARD_SERIAL_NUMBER    (e.g. `bbg-BBG115081198`)
@@ -210,41 +212,41 @@ function send_system_info_to_cloud {
 	fi
 }
 
-function run_time_daemon_and_restore {
+function run_timestamp_daemon {
 	local TIMESTAMP_LOGGING="${YAC_LIB_DIR}/timestamp_logging.py"
 	local TIMESTAMP_DIR="${YS_DIR}/share/timestamp"
 	local TIMESTAMP_LOG="${PROFILE_LOG_SYS_DIR}/timestamp_daemon.log"
+	local TIMESTAMP_BOOT_RECORDFILE="/tmp/timestamp_daemon.txt"
 	local RESULT=""
 	mkdir -p ${TIMESTAMP_DIR}
-
-	# Restore timestamp from local disk.
-	#
-	if [ -f "${SOFT_REBOOT_TAGFILE}" ]; then
-		INFO "detect soft reboot, ignore timestamp restore => ${SOFT_REBOOT_TAGFILE} ($(cat ${SOFT_REBOOT_TAGFILE}))"
-		rm -f ${SOFT_REBOOT_TAGFILE}
-	else
-		INFO "boot: before restore => $(date '+%Y/%m/%d %H:%M:%S')" | tee -a ${TIMESTAMP_LOG}
-		${TIMESTAMP_LOGGING} -v -d ${TIMESTAMP_DIR} restore
-		RESULT=$?
-		[ "0" == "${RESULT}" ] && INFO "successfully restore timestamp from local storage" || INFO "failed to restore timestamp: ${RESULT}"
-		INFO "boot: after restore => $(date '+%Y/%m/%d %H:%M:%S')" | tee -a ${TIMESTAMP_LOG}
-	fi
 
 	# Cleanup old timestamp logging directory.
 	# 
 	local TMP=$(mktemp /tmp/XXXXXX)
-	find /opt/ys/share/timestamp -maxdepth 1 -mindepth 1 -type d | sort > ${TMP}
+	find ${TIMESTAMP_DIR} -maxdepth 1 -mindepth 1 -type d | sort > ${TMP}
 	if [ "$(cat ${TMP} | wc -l)" -gt "6" ]; then
 		local DIR=$(cat ${TMP} | head -n1)
 		[ "" != "${DIR}" ] && [ "/" != "${DIR}" ] && INFO "cleanup old timestamp logging directory: $(LIGHT_GREEN ${DIR})" && rm -rf ${DIR}
 	fi
 	rm -f ${TMP}
+	rm -f ${TIMESTAMP_BOOT_RECORDFILE}
 
 	# Startup the timestamp logging daemon, which periodically writes UTC
 	# timestamp (in seconds) into disk.
+	# 
+	# Another important mission for timestamp daemon is to keep the number
+	# of booting times for the TOE node.
 	#
 	INFO "starting timestamp logging daemon"
-	nohup ${TIMESTAMP_LOGGING} -v -i 300 -d ${TIMESTAMP_DIR} daemon >> ${TIMESTAMP_LOG} 2>&1&
+	nohup ${TIMESTAMP_LOGGING} -v -i 300 -d ${TIMESTAMP_DIR} daemon -r ${TIMESTAMP_BOOT_RECORDFILE} >> ${TIMESTAMP_LOG} 2>&1&
+
+	while true; do
+		sleep 1
+		[ -f "${TIMESTAMP_BOOT_RECORDFILE}" ] && break
+		INFO "waiting timestamp daemon ready ..."
+	done
+
+	export BOARD_PROFILE_BOOTS=$(cat ${TIMESTAMP_BOOT_RECORDFILE} | awk -F'\t' '{print $2}')
 }
 
 
@@ -341,6 +343,12 @@ function yac_main {
 	update_system_id
 	notify_event "update_system_id" ${BOARD_UNIQUE_ID}
 
+	# Startup the timestamp daemon, and increase the number of
+	# booting times for the node.
+	#
+	notify_event "run_timestamp_daemon"
+	run_timestamp_daemon
+
 	# Generate `/tmp/ttt_system` information file.
 	#
 	INFO "generate_system_info"
@@ -352,13 +360,6 @@ function yac_main {
 	INFO initialize_network
 	source "${YAC_LIB_DIR}/networking"
 	initialize_network || (ifconfig eth0 up; dhclient eth0; ifconfig -a)
-
-	if [ "true" != "${YAC_BOOT_IGNORE_TIME_DAEMON}" ]; then
-		# Restore timestamp from local disk cache.
-		#
-		notify_event "run_time_daemon_and_restore"
-		run_time_daemon_and_restore
-	fi
 
 	#if [ "true" != "${YAC_BOOT_IGNORE_WIRELESS_NETWORK_CONNECT}" ]; then
 		# Setup wifi connection.

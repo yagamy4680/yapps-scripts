@@ -73,13 +73,14 @@ def listdir_with_fullpath(directory, is_dir=True):
 
 
 class Service:
-    def __init__(self, directory, verbose, interval):
+    def __init__(self, directory, verbose, interval, record):
         self.directory = directory
         self.verbose = verbose
         self.interval = interval
         self.counter = 0
         self.running = False
         self.index = find_index(directory)
+        self.record = record
         self.max_files = 60
 
 
@@ -192,6 +193,8 @@ class Service:
         index = 0 if index is None else index + 1
         name = "%06d" % index
         directory = os.path.join(self.directory, name)
+        with open(self.record, "w") as record_file:
+            record_file.write("%d\t%s\n" % (index, name))
         self.debug("directory => %s" % (directory))
         self.debug("index => %s" % (name))
         self.create_directory(directory)
@@ -214,6 +217,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("command", help="perform the subcommand", type=str)
     parser.add_argument("-d", "--directory", help="the root directory for timestamp logging", type=str, default=None)
+    parser.add_argument("-r", "--record", help="the path to the file for writing the number of booting", type=str, default="/tmp/timestamp_logging.idx")
     parser.add_argument("-v", "--verbose", help="verbose messages", default=False, action="store_true")
     parser.add_argument("-i", "--interval", help="time interval for daemon execution", default=300, type=int)
     args = parser.parse_args()
@@ -222,7 +226,7 @@ def main():
     assert_exit(directory is None, "failed to find get_timestamp_dir()", 1)
 
     global service
-    service = Service(directory, args.verbose, args.interval)
+    service = Service(directory, args.verbose, args.interval, args.record)
     command = args.command
     if command == "daemon":
         service.run_daemon()
