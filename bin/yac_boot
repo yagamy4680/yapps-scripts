@@ -60,7 +60,29 @@ __EOF__
 chmod +x $2
 }
 
-function generate_
+function generate_logrotate_conf {
+cat <<__EOF__ > $1
+/${BOARD_PROFILE}/logs/app/*.log {
+  daily
+  dateext
+  missingok
+  rotate 30
+  compress
+  notifempty
+  sharedscripts
+}
+
+/${BOARD_PROFILE}/logs/system/*.log {
+  daily
+  dateext
+  missingok
+  rotate 30
+  compress
+  notifempty
+  sharedscripts
+}
+__EOF__
+}
 
 # Generate 3 variables, and export them:
 #    - BOARD_SERIAL_NUMBER    (e.g. `bbg-BBG115081198`)
@@ -198,6 +220,10 @@ function generate_system_info {
 	generate_ttt_system | grep -v "^$" > /tmp/ttt_system
 	INFO "/tmp/ttt_system"
 	cat /tmp/ttt_system | awk '{printf "\t%s\n", $0}'
+
+	INFO "/etc/logrotate.d/yapps"
+	generate_logrotate_conf "/etc/logrotate.d/yapps"
+	cat /etc/logrotate.d/yapps | awk '{printf "\t%s\n", $0}'
 }
 
 function send_system_info_to_cloud {
