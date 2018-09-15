@@ -74,6 +74,6 @@ function RUN_NODE_APP_DAEMON {
 			$@ \
 		> ${DAEMON_SCRIPT}
 
-	nohup ${BASH} ${DAEMON_SCRIPT} > ${APP_LOGFILE} 2>&1&
+	nohup ${BASH} ${DAEMON_SCRIPT} >> ${APP_LOGFILE} 2>&1&
 }
 

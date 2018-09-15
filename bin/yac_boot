@@ -69,17 +69,17 @@ cat <<__EOF__ > $1
   rotate 30
   compress
   notifempty
-  sharedscripts
+  copytruncate
 }
 
 /${BOARD_PROFILE}/logs/system/*.log {
-  daily
+  weekly
   dateext
   missingok
-  rotate 30
+  rotate 10
   compress
   notifempty
-  sharedscripts
+  copytruncate
 }
 __EOF__
 }
