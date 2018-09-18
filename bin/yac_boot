@@ -201,20 +201,6 @@ function update_system_id {
 	sed -i "s/^127\.0\.1\.1.*/127\.0\.1\.1\t$(hostname)\ $(hostname).localdomain/g" /etc/hosts
 }
 
-function notify_cloud {
-	local TMP=$(mktemp /tmp/XXXXXX)
-	jo -p ttt=$(jo $(cat /tmp/ttt_system | tr '\t' '=' | tr '\n' ' ')) > ${TMP}
-	cat ${TMP}
-	RUN_CMD_STREAMING \
-		http \
-			--verbose \
-			--ignore-stdin \
-			https://registry.t2t.io/api/v1/update-node/${BOARD_PROFILE}/${BOARD_UNIQUE_ID} \
-			metadata:=@${TMP}
-	INFO "successfully https://registry.t2t.io/api/v1/update-node/${BOARD_PROFILE}/${BOARD_UNIQUE_ID}"
-	rm -f ${TMP}
-}
-
 function generate_system_info {
 	export BOARD_ALIAS="$(uname -n)"
 	generate_ttt_system | grep -v "^$" > /tmp/ttt_system
@@ -224,18 +210,6 @@ function generate_system_info {
 	INFO "/etc/logrotate.d/yapps"
 	generate_logrotate_conf "/etc/logrotate.d/yapps"
 	cat /etc/logrotate.d/yapps | awk '{printf "\t%s\n", $0}'
-}
-
-function send_system_info_to_cloud {
-	if [ "true" == "${WIRELESS_CONNECTED}" ]; then
-		if [ "99" == "${WIRELESS_CONNECTIVITY}" ]; then
-			notify_cloud &
-		else
-			ERR "connect to access-point but not connect to Internet"
-		fi
-	else
-		ERR "failed to connect to any access-point"
-	fi
 }
 
 function run_timestamp_daemon {
@@ -397,14 +371,6 @@ function yac_main {
 	#	notify_event "wireless" "${WIRELESS_CONNECTED}" "${WIRELESS_CONNECTIVITY}"
 	#	network_wait
 	#fi
-
-	if [ "true" != "${YAC_BOOT_IGNORE_SEND_SYSINFO_TO_CLOUD}" ]; then
-		# Notify cloud (tic-dm)
-		#
-		INFO "send_system_info_to_cloud"
-		notify_event "send_system_info_to_cloud"
-		send_system_info_to_cloud
-	fi
 
 	if [ "true" != "${YAC_BOOT_IGNORE_NTP}" ]; then
 		# Synchronize with NTP time
