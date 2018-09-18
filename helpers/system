@@ -39,6 +39,9 @@ $(cat ${YAC_DIR}/helpers/nodejs_daemon | grep -v "^#")
 #
 function init_yapps_variables {
 $(DUMP_YAPPS_VARIABLES)
+	rm -f $(GET_DAEMON_CONFIG ${APP} pid_file)
+	rm -f $(GET_DAEMON_CONFIG ${APP} ppid_file)
+	rm -f $(GET_DAEMON_CONFIG ${APP} unixsock_file)
 	return 0
 }
 
