@@ -20,6 +20,10 @@ function run_daemon {
 	local HOOK_ENTER="yapps_launch_hook_enter"
 	local HOOK_EXIT="yapps_launch_hook_exit"
 
+	# Record the timestamp.
+	#
+	date '+%Y%m%d%H%M'
+
 	while true; do
 		# Initialize YAPPS_xxx environment variables, such as
 		#   - YAPPS_LOGGER_PRECISE_TIMESTAMP

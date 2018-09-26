@@ -30,7 +30,7 @@ function yac_main {
 		fi
 	fi
 	local DST_FILE="${PROFILE_CURRENT_DIR}/logs/${APP}.log"
-	local LOG_FILE="${PROFILE_LOG_APP_DIR}/${APP}.${BOOTS}.${TIME}.log"
+	local LOG_FILE="${PROFILE_LOG_APP_DIR}/${APP}.${BOOTS}.log"
 
 	INFO "\tNODE_PATH = $(PURPLE ${NODEJS_MODULE_DIR}/node_modules)"
 	INFO "\t$(YELLOW ${RUNTIME_NODEJS_DIR}/bin/node) $(BLUE ${APP_DIR}/index.js) $(LIGHT_GREEN $@)"
