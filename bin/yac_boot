@@ -96,7 +96,7 @@ function generate_id {
 	local YAC_ID_FILE="/yac.id"
 	local YAC_TOKEN_FILE="/yac.token"
 
-	if [ "" != ${BEAGLEBONE_ID} ]; then
+	if [ "" != "${BEAGLEBONE_ID}" ]; then
 		# It's BeagleBone-Black series: BBB/BBG/BBG-Wirelss/IPCS
 		#
 		export BOARD_SERIAL_NUMBER=${BEAGLEBONE_ID}
@@ -172,7 +172,7 @@ function generate_id {
 			[ -f "${YAC_ID_FILE}" ] && BOARD_UNIQUE_ID=$(cat "${YAC_ID_FILE}")
 			[ -f "${YAC_TOKEN_FILE}" ] && BOARD_TOKEN=$(cat "${YAC_TOKEN_FILE}")
 		fi
-	elif [ "" != ${RPI_ID} ]; then
+	elif [ "" != "${RPI_ID}" ]; then
 		# It's RPi2/3, boots from SD card
 		#
 		export BOARD_SERIAL_NUMBER=${RPI_ID}
