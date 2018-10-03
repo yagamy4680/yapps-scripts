@@ -139,6 +139,7 @@ function net_dialup_datalink_wireless {
 	local AP_LIST=$(mktemp /tmp/XXXXXX)
 	INFO "[$(YELLOW ${WIRELESS_IF})] scanning access points ..."
 	iwlist ${WIRELESS_IF} scanning | bash ${YAC_LIB_DIR}/parse_iwlist_scan | sort -u > ${AP_LIST}
+	[ "0" != "$?" ] && INFO "[$(YELLOW ${WIRELESS_IF})] fails to perform scanning with command: iwlist ${WIRELESS_IF} scanning" && return 1
 	INFO "[$(YELLOW ${WIRELESS_IF})] found access-points: $(BLUE $(cat ${AP_LIST} | tr '\n' ' '))"
 
 	# Read system settings for wireless
@@ -156,6 +157,7 @@ function net_dialup_datalink_wireless {
 	cat ${AP_LIST} | tr '\n' '\0' | xargs -0 -I{} sh -c "grep -P \"^.........\t{}\t\" ${TMP2}" >> ${TMP3}
 	[ -f "${PROFILE_WPA_CONF}" ] && echo ${PROFILE_WPA_CONF} > ${TMP4}
 	sort ${TMP3} | awk -F '\t' '{printf "%s\t%s\n", $2, $3}' >> ${TMP4}
+	[ "0" == "$(cat ${TMP4} | grep -v '^$' | wc -l)" ] && INFO "[$(YELLOW ${WIRELESS_IF})] no access points is discovered." && return 1
 	INFO "[$(YELLOW ${WIRELESS_IF})] try access-points: $(BLUE $(cat ${TMP4} | awk -F '\t' '{print $1}' | tr '\n' ' '))"
 
 	local LOGFILE="${PROFILE_LOG_SYS_DIR}/${WIRELESS_IF}_wpa_`date +%Y_%m%d_%H%M`.log"
