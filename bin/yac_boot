@@ -62,7 +62,7 @@ chmod +x $2
 
 function generate_logrotate_conf {
 cat <<__EOF__ > $1
-/${BOARD_PROFILE}/logs/app/*.${${BOARD_PROFILE_BOOTS}}.log {
+/${BOARD_PROFILE}/logs/app/*.${BOARD_PROFILE_BOOTS}.log {
   daily
   dateext
   missingok
