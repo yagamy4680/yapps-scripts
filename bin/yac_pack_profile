@@ -1,0 +1,42 @@
+#!/bin/bash
+#
+##DOC:	pack a selected version of profile release
+
+function yac_main {
+	local VERSION=$1
+	local DIR=$2
+
+	[ "" == "${VERSION}" ] && ERR "please specify the profile version to be packed" && exit 1
+	[ "" == "${DIR}" ] && DIR="/tmp"
+	[ ! -d "${DIR}" ] && ERR "please specify an existing directory to output archive" && exit 1
+
+	local PROFILE_DIR="/mnt/app/profiles/${BOARD_PROFILE}/${VERSION}"
+	[ ! -d "${PROFILE_DIR}" ] && ERR "the directory ${PROFILE_DIR} doesn't exist" && exit 1
+	[ ! -f "${PROFILE_DIR}/components.yml" ] && ERR "the version ${VERSION} (${PROFILE_DIR}) is invalid: missing components.yml" && exit 1
+
+	local CURRENT=$(pwd)
+	cd ${DIR}
+	DIR=$(pwd)
+	cd ${CURRENT}
+
+	local PROFILE_RAW_ARCHIVE="${DIR}/${VERSION}.$(uname -m).node-$(node -v | sed 's/^v//g' | tr '.' '_').tar"
+	RUN_CMD rm -f ${PROFILE_RAW_ARCHIVE}
+	RUN_CMD rm -f ${PROFILE_RAW_ARCHIVE}.gz
+	RUN_CMD cd ${PROFILE_DIR}
+	if [ "false" == "${PROGRESS}" ]; then
+		RUN_CMD tar --exclude='./log' --exclude='./daemons' -zcf ${PROFILE_RAW_ARCHIVE} .
+	else
+		INFO "archiving ${PROFILE_DIR} ..."
+		tar cvf ${PROFILE_RAW_ARCHIVE} . | perl -e '$| = 1; $f = "%-" . `tput cols` . "s\r"; $f =~ s/\n//; while (<>) {s/\n//; printf $f, $_;} print "\n"' || exit 1
+	fi
+	local SIZE=$(du -sb ${PROFILE_RAW_ARCHIVE} | awk '{print $1}')
+
+	INFO "compressing ${PROFILE_RAW_ARCHIVE} ..."
+	cat ${PROFILE_RAW_ARCHIVE} | pv -s ${SIZE} | gzip -c > ${PROFILE_RAW_ARCHIVE}.gz
+
+	RUN_CMD cd ${CURRENT}
+
+	if [ "true" == "${UPLOAD}" ]; then
+		yac upload rootfs ${PROFILE_RAW_ARCHIVE}.gz
+	fi
+}

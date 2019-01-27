@@ -96,6 +96,25 @@ function download_and_extract {
 	fi
 }
 
+function offline_extract {
+	local PROFILE_ENV=$1
+	local ARCHIVE=$2
+	local ARCHIVE_NAME="${ARCHIVE%%.*}"
+
+	local BOARD_PROFILE_VERSION=$(mount | grep "/${BOARD_PROFILE}/current" | awk '{print $1}' | awk -F'/' '{print $6}')
+	[ "${ARCHIVE_NAME}" == "${BOARD_PROFILE_VERSION}" ] && ERR "the target profile archive equals to currently-running version: $(YELLOW ${ARCHIVE_NAME})" && exit 1
+
+	local TARGET_DIR="/mnt/app/profiles/${BOARD_PROFILE}/${ARCHIVE_NAME}"
+	[ -d "${TARGET_DIR}/apps" ] && INFO "$(RED ${TARGET_DIR}) already exists. Going to overwrite it" && rm -rf ${TARGET_DIR}
+	mkdir -p ${TARGET_DIR}
+	RUN_CMD tar xvf ${ARCHIVE} -C ${TARGET_DIR}
+	INFO "update /mnt/app/profiles/${BOARD_PROFILE}/entry with $(YELLOW ${ARCHIVE_NAME})"
+	echo "${ARCHIVE_NAME}" > /mnt/app/profiles/${BOARD_PROFILE}/entry
+	INFO "switch /mnt/app/profiles/${BOARD_PROFILE}/env to $(YELLOW ${PROFILE_ENV})"
+	echo "${PROFILE_ENV}" > /mnt/app/profiles/${BOARD_PROFILE}/env
+	return 0
+}
+
 function yac_main {
 	local PROFILE_VERSION=${VERSION}
 	local PROFILE_ENV="development"
@@ -115,5 +134,14 @@ function yac_main {
 	[ "" == "${BOARD_UNIQUE_ID}" ] && BOARD_UNIQUE_ID="unknown"
 	[ "" == "${BOARD_SERIAL_NUMBER}" ] && BOARD_SERIAL_NUMBER="unknown"
 
-	download_and_extract ${PROFILE_ENV} ${PROFILE_VERSION}
+	local OFFLINE=$1
+	local ARCHIVE=$2
+
+	if [ "" == "${OFFLINE}" ]; then
+		download_and_extract ${PROFILE_ENV} ${PROFILE_VERSION}
+	else
+		[ "" == "${ARCHIVE}" ] && ERR "missing ARCHIVE as 2nd parameter" && exit 1
+		[ ! -f "${ARCHIVE}" ] && ERR "no such archive ${ARCHIVE}" && exit 1
+		offline_extract ${PROFILE_ENV} ${ARCHIVE}
+	fi
 }
