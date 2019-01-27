@@ -3,13 +3,21 @@
 ##DOC:	pack a selected version of profile release
 
 function yac_main {
-	local VERSION=$1
-	local DIR=$2
+	local DIR=$1
+	local VERSION=$2
 
-	[ "" == "${VERSION}" ] && ERR "please specify the profile version to be packed" && exit 1
 	[ "" == "${DIR}" ] && DIR="/tmp"
 	[ ! -d "${DIR}" ] && ERR "please specify an existing directory to output archive" && exit 1
+	INFO "using $(LIGHT_GREEN ${DIR}) as output directory"
 
+	[ "" == "${VERSION}" ] && VERSION=${BOARD_PROFILE_VERSION}
+	INFO "using $(LIGHT_GREEN ${BOARD_PROFILE_VERSION}) to pack"
+
+	source "$(dirname $0)/../externals/bash-utils/system"
+	initiate_linux_os_variables
+	INFO "using $(LIGHT_GREEN ${OS_NAME}) as os name"
+	INFO "using $(LIGHT_GREEN ${OS_ARCH}) as os architecture"
+	
 	local PROFILE_DIR="/mnt/app/profiles/${BOARD_PROFILE}/${VERSION}"
 	[ ! -d "${PROFILE_DIR}" ] && ERR "the directory ${PROFILE_DIR} doesn't exist" && exit 1
 	[ ! -f "${PROFILE_DIR}/components.yml" ] && ERR "the version ${VERSION} (${PROFILE_DIR}) is invalid: missing components.yml" && exit 1
@@ -19,7 +27,7 @@ function yac_main {
 	DIR=$(pwd)
 	cd ${CURRENT}
 
-	local PROFILE_RAW_ARCHIVE="${DIR}/${VERSION}.$(uname -m).node-$(node -v | sed 's/^v//g' | tr '.' '_').tar"
+	local PROFILE_RAW_ARCHIVE="${DIR}/${BOARD_PROFILE}-${VERSION}.${OS_NAME}.${OS_ARCH}.node-$(node -v | sed 's/^v//g' | tr '.' '-').tar"
 	RUN_CMD rm -f ${PROFILE_RAW_ARCHIVE}
 	RUN_CMD rm -f ${PROFILE_RAW_ARCHIVE}.gz
 	RUN_CMD cd ${PROFILE_DIR}
@@ -29,12 +37,12 @@ function yac_main {
 		INFO "archiving ${PROFILE_DIR} ..."
 		tar cvf ${PROFILE_RAW_ARCHIVE} . | perl -e '$| = 1; $f = "%-" . `tput cols` . "s\r"; $f =~ s/\n//; while (<>) {s/\n//; printf $f, $_;} print "\n"' || exit 1
 	fi
-	local SIZE=$(du -sb ${PROFILE_RAW_ARCHIVE} | awk '{print $1}')
-
-	INFO "compressing ${PROFILE_RAW_ARCHIVE} ..."
-	cat ${PROFILE_RAW_ARCHIVE} | pv -s ${SIZE} | gzip -c > ${PROFILE_RAW_ARCHIVE}.gz
 
 	RUN_CMD cd ${CURRENT}
+
+	local SIZE=$(du -sb ${PROFILE_RAW_ARCHIVE} | awk '{print $1}')
+	INFO "compressing ${PROFILE_RAW_ARCHIVE} ..."
+	cat ${PROFILE_RAW_ARCHIVE} | pv -s ${SIZE} | gzip -c > ${PROFILE_RAW_ARCHIVE}.gz
 
 	if [ "true" == "${UPLOAD}" ]; then
 		yac upload rootfs ${PROFILE_RAW_ARCHIVE}.gz

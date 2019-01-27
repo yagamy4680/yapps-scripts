@@ -100,7 +100,17 @@ function offline_extract {
 	local PROFILE_ENV=$1
 	local ARCHIVE=$2
 	local ARCHIVE_NAME=$(basename ${ARCHIVE})
-	local ARCHIVE_VERSION="${ARCHIVE_NAME%%.*}"
+	local ARCHIVE_NAME1=$(echo ${ARCHIVE_NAME} | awk -F'.' '{print $1}')
+	local ARCHIVE_NAME2=$(echo ${ARCHIVE_NAME} | awk -F'.' '{print $2}')
+	local ARCHIVE_NAME3=$(echo ${ARCHIVE_NAME} | awk -F'.' '{print $3}')
+	local ARCHIVE_NAME4=$(echo ${ARCHIVE_NAME} | awk -F'.' '{print $4}')
+	local ARCHIVE_PROFILE=$(echo ${ARCHIVE_NAME1} | tr '-' '\n' | head -n1)
+	local ARCHIVE_VERSION=$(echo ${ARCHIVE_NAME1} | tr '-' '\n' | tail -n1)
+	local ARCHIVE_OS_ARCH=${ARCHIVE_NAME3}
+	local ARCHIVE_NODE_VERSION=${ARCHIVE_NAME3}
+
+	[ "${ARCHIVE_PROFILE}" != "${BOARD_PROFILE}" ] && ERR "expects profile ${BOARD_PROFILE} but ${ARCHIVE_PROFILE} from archive filename" && exit 1
+	[ "${ARCHIVE_OS_ARCH}" != "$(uname -m)" ] && INFO "expects architecture $(uname -m) but ${ARCHIVE_OS_ARCH}"
 
 	local BOARD_PROFILE_VERSION=$(mount | grep "/${BOARD_PROFILE}/current" | awk '{print $1}' | awk -F'/' '{print $6}')
 	[ "${ARCHIVE_VERSION}" == "${BOARD_PROFILE_VERSION}" ] && ERR "the target profile archive equals to currently-running version: $(YELLOW ${ARCHIVE_VERSION})" && exit 1
