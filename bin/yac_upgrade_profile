@@ -99,17 +99,18 @@ function download_and_extract {
 function offline_extract {
 	local PROFILE_ENV=$1
 	local ARCHIVE=$2
-	local ARCHIVE_NAME="${ARCHIVE%%.*}"
+	local ARCHIVE_NAME=$(basename ${ARCHIVE})
+	local ARCHIVE_VERSION="${ARCHIVE_NAME%%.*}"
 
 	local BOARD_PROFILE_VERSION=$(mount | grep "/${BOARD_PROFILE}/current" | awk '{print $1}' | awk -F'/' '{print $6}')
-	[ "${ARCHIVE_NAME}" == "${BOARD_PROFILE_VERSION}" ] && ERR "the target profile archive equals to currently-running version: $(YELLOW ${ARCHIVE_NAME})" && exit 1
+	[ "${ARCHIVE_VERSION}" == "${BOARD_PROFILE_VERSION}" ] && ERR "the target profile archive equals to currently-running version: $(YELLOW ${ARCHIVE_VERSION})" && exit 1
 
-	local TARGET_DIR="/mnt/app/profiles/${BOARD_PROFILE}/${ARCHIVE_NAME}"
+	local TARGET_DIR="/mnt/app/profiles/${BOARD_PROFILE}/${ARCHIVE_VERSION}"
 	[ -d "${TARGET_DIR}/apps" ] && INFO "$(RED ${TARGET_DIR}) already exists. Going to overwrite it" && rm -rf ${TARGET_DIR}
 	mkdir -p ${TARGET_DIR}
 	RUN_CMD tar xvf ${ARCHIVE} -C ${TARGET_DIR}
-	INFO "update /mnt/app/profiles/${BOARD_PROFILE}/entry with $(YELLOW ${ARCHIVE_NAME})"
-	echo "${ARCHIVE_NAME}" > /mnt/app/profiles/${BOARD_PROFILE}/entry
+	INFO "update /mnt/app/profiles/${BOARD_PROFILE}/entry with $(YELLOW ${ARCHIVE_VERSION})"
+	echo "${ARCHIVE_VERSION}" > /mnt/app/profiles/${BOARD_PROFILE}/entry
 	INFO "switch /mnt/app/profiles/${BOARD_PROFILE}/env to $(YELLOW ${PROFILE_ENV})"
 	echo "${PROFILE_ENV}" > /mnt/app/profiles/${BOARD_PROFILE}/env
 	return 0
