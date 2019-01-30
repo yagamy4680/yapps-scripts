@@ -1,0 +1,113 @@
+#!/bin/bash
+#
+##DOC:	apply image with its script and contents
+
+function mount_sqfs {
+	export SQFS=$1
+	export MOUNT_DIR="/tmp/${START_TIME}"
+	export MOUNTED="true"
+	INFO "using $(YELLOW ${MOUNT_DIR}) as mounting directory for ${SQFS}"
+	RUN_CMD mkdir -p ${MOUNT_DIR}
+	RUN_CMD mount ${SQFS} ${MOUNT_DIR}
+}
+
+function umount_sqfs_and_exit {
+	local EXIT_CODE=$1
+	[ "" == "${EXIT_CODE}" ] && EXIT_CODE="127"
+	if [ "true" == "${MOUNTED}" ]; then
+		RUN_CMD umount ${MOUNT_DIR} && RUN_CMD rm -rf ${MOUNT_DIR}
+		local RESULT_FILE="${SQFS}.${START_MS}.json"
+		jo \
+			start=${START_MS} \
+			end=$(date '+%s')000 \
+			code=${EXIT_CODE} \
+			sqfs=${SQFS} \
+		> ${RESULT_FILE}
+		cat ${RESULT_FILE} | jq .
+	fi
+	exit ${EXIT_CODE}
+}
+
+function load_autorun_script {
+	local SCRIPT="${MOUNT_DIR}/autorun"
+	[ ! -f "${SCRIPT}" ] && ERR "missing autorun script at ${MOUNT_DIR}" && umount_sqfs_and_exit 10
+	source ${SCRIPT}
+}
+
+function check_package_contents {
+	local CURRENT=$(pwd)
+	local PACKAGE_DIR="${MOUNT_DIR}/packages"
+	[ ! -d "${PACKAGE_DIR}" ] && return 0
+	cd ${PACKAGE_DIR}
+	local PKGS=($(find . -name '*.sha256' | sort))
+	for p in "${PKGS[@]}"; do
+		if sha256sum -c ${p} 2>&1 > /dev/null; then
+			local NAME=$(basename ${p%.*})
+			INFO "[$(LIGHT_GREEN checked)] ${NAME}"
+		else
+			ERR "${NAME} checksum mismatched"
+			cd ${CURRENT}
+			umount_sqfs_and_exit 20
+		fi
+	done
+	cd ${CURRENT}
+}
+
+function yac_main {
+	local SQFS_OR_DIR=$1
+	shift
+	[ "" == "${SQFS_OR_DIR}" ] && ERR "please specify a sqfs image, or a directory to apply" && exit 1
+	[ ! -f "${SQFS_OR_DIR}" ] && [ ! -d "${SQFS_OR_DIR}" ] && ERR "missing file or directory: ${SQFS_OR_DIR}" && exit 2
+
+	export START_TIME=$(date '+%Y%m%d%H%M%S')
+	export START_MS="$(date '+%s')000"
+
+	#
+	# mount sqfs when necessary. 
+	#
+	if [ -f "${SQFS_OR_DIR}" ]; then
+		local EXT=${SQFS_OR_DIR##*.}
+		[ "sqfs" != "${EXT}" ] && ERR "the file name shall end with .sqfs but .${EXT}" && exit 3
+		mount_sqfs ${SQFS_OR_DIR}
+	else
+		export MOUNT_DIR=${SQFS_OR_DIR}
+		INFO "using $(LIGHT_GREEN ${MOUNT_DIR}) as mounting directory"
+	fi
+
+	#
+	# perform checksum verification over each package
+	#
+	check_package_contents
+
+	#
+	# load $MOUNT_DIR/autorun BASH script
+	#
+	load_autorun_script
+
+	#
+	# execute the function `run_apply`
+	#
+	local EXIT_CODE="0"
+	local NAME="run_apply"
+	if function_exist ${NAME}; then
+		INFO "$(PURPLE ${NAME} $@)"
+		${NAME} $@
+		EXIT_CODE=$?
+	else
+		ERR "missing run_apply function in autorun script"
+		umount_sqfs_and_exit 20
+	fi
+
+	#
+	# execute the function `run_rollback` when `run_apply` exits with non-zero code
+	#
+	if [ "0" != "${EXIT_CODE}" ]; then
+		NAME="run_rollback"
+		function_exist ${NAME} && INFO "$(PURPLE ${NAME} $@)" && ${NAME} $@
+	fi
+
+	#
+	# safely cleanup all allocated resources
+	#
+	umount_sqfs_and_exit ${EXIT_CODE}
+}
