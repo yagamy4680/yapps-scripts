@@ -2,6 +2,12 @@
 #
 ##DOC:	apply image with its script and contents
 
+function inform_server {
+	[ "" == "${WSTTY_AGENT_UNIXSOCK}" ] && return 0
+	[ "" == "${PROGRESS}" ] && local PROGRESS="0"
+	echo -e "${WSTTY_AGENT_UNIXSOCK_PREFIX}\t${PROGRESS}\t$(echo $@ | tr ' ' '\t')" | socat - unix-connect:${WSTTY_AGENT_UNIXSOCK}
+}
+
 function mount_sqfs {
 	export SQFS=$1
 	export MOUNT_DIR="/tmp/${START_TIME}"
@@ -16,7 +22,8 @@ function umount_sqfs_and_exit {
 	[ "" == "${EXIT_CODE}" ] && EXIT_CODE="127"
 	if [ "true" == "${MOUNTED}" ]; then
 		RUN_CMD umount ${MOUNT_DIR} && RUN_CMD rm -rf ${MOUNT_DIR}
-		local RESULT_FILE="${SQFS}.${START_MS}.json"
+		local BOOTS=$(cat /tmp/ttt_system | grep "^profile_boots" | awk '{print $2}')
+		local RESULT_FILE="${SQFS}.boots${BOOTS}.t${START_TIME}.exit${EXIT_CODE}.json"
 		jo \
 			start=${START_MS} \
 			end=$(date '+%s')000 \
