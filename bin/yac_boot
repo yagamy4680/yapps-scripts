@@ -359,7 +359,7 @@ function yac_main {
 	#
 	INFO initialize_network
 	source "${YAC_LIB_DIR}/networking"
-	initialize_network || (ifconfig eth0 up; dhclient eth0; ifconfig -a)
+	initialize_network 2>&1 | tee -a /tmp/networking.log || (ifconfig eth0 up; dhclient eth0; ifconfig -a)
 
 	#if [ "true" != "${YAC_BOOT_IGNORE_WIRELESS_NETWORK_CONNECT}" ]; then
 		# Setup wifi connection.

@@ -105,7 +105,7 @@ function net_detect_interfaces {
 }
 
 function net_bring_up_interface {
-	local COUNTER="5"
+	local COUNTER="30"
 	local NETIF=$1
 	local WAITING=$2
 	[ "" == "${WAITING}" ] && WAITING="true"
@@ -203,7 +203,7 @@ function net_dialup_datalink_wireless {
 
 function net_dialup_datalink_ethernet {
 	local NETIF=$1
-	if net_wait_datalink ${NETIF} 5; then
+	if net_wait_datalink ${NETIF} 30; then
 		return 0
 	else
 		INFO "[$(YELLOW ${NETIF})] data link failure, maybe cable is unplugged!!"
@@ -437,8 +437,26 @@ function initialize_network {
 		INFO "[$(YELLOW ${interface})] initialization - link: $(LIGHT_GREEN ${LINK_TYPE}), ip: $(BLUE ${IP_TYPE}) $(GRAY ${IP_ARGS})"
 
 		net_bring_up_interface ${interface} true &&
-			net_dialup_datalink_${LINK_TYPE} ${interface} &&
+			net_dialup_datalink_${LINK_TYPE} ${interface}
+
+		local EXIT_CODE=$?
+		if [ "static" == "${IP_TYPE}" ]; then
+			# 
+			# When the ip configuration is static, then we forcedly setup a static ip 
+			# address to that interface, no matter when the data-link is up or not.
+			# It means, even the cable is unplugged, we still setup a static ip address
+			# on the interface.
+			#
 			net_configure_ip_${IP_TYPE} ${interface} ${IP_ARGS}
+		else
+			#
+			# When the ip configuration is dynamic (dhcp), then we only
+			# run dhcp client on the interface when the data-link is up (at least
+			# the cable is plugged). Otherwise, dhcp client will wait for
+			# very long time to allocate ip address. Super long time!!!
+			#
+			[ "0" == "${EXIT_CODE}" ] && net_configure_ip_${IP_TYPE} ${interface} ${IP_ARGS}
+		fi
 	done
 
 	# INFO ${TMP_NETIFS_PREFERRED}
