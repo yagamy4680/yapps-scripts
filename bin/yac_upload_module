@@ -6,9 +6,18 @@ function upload_nodejs_module {
 	[ "" == "${UUID}" ] && UUID=$(dbus-uuidgen)
 	[ "" == "${UUID}" ] && UUID="$(cat /proc/sys/kernel/random/uuid)"
 	[ "" == "${ARCHIVE_SITE}" ] && ARCHIVE_SITE=$(basename ${CLOUD_ARCHIVE_URL})
-	ARCHIVE="/tmp/${UUID}.tar.gz"
-	cd ${NODEJS_MODULE_DIR}
-	UPLOAD_DIR="/embedded-linux/nodejs-modules/${OS_NAME}/${OS_ARCH}/${NODEJS_VERSION}"
+	local ARCHIVE="/tmp/${UUID}.tar.gz"
+	if [ -d "${NODEJS_MODULE_DIR}/node_modules" ]; then
+		cd ${NODEJS_MODULE_DIR}
+		INFO "upload ${NODEJS_MODULE_DIR}/node_modules to cloud ..."
+	elif [ -d "$(pwd)/node_modules" ]; then
+		INFO "upload $(pwd)/node_modules to cloud ..."
+	else
+		ERR "missing node_modules in either ${NODEJS_MODULE_DIR} or current directory ($(pwd))"
+		return 1
+	fi
+
+	local UPLOAD_DIR="/embedded-linux/nodejs-modules/${OS_NAME}/${OS_ARCH}/${NODEJS_VERSION}"
 	RUN_CMD_STREAMING tar czf ${ARCHIVE} ./node_modules
 	RUN_CMD \
 		http \
@@ -23,11 +32,14 @@ function upload_nodejs_module {
 				overwrite:=true
 	rm -f ${ARCHIVE}
 
-	ARCHIVE_LIST="/tmp/archives.txt"
+	local ARCHIVE_LIST="/tmp/archives.txt"
 	http --check-status --ignore-stdin ${CLOUD_ARCHIVE_URL}${UPLOAD_DIR}/$(basename ${ARCHIVE_LIST}) > ${ARCHIVE_LIST} 2>&1
 	[ "0" != "$?" ] && rm -f ${ARCHIVE_LIST}
 
-	MODULES="$(cat ${PROFILE_CURRENT_DIR}/apps/packages.conf | tr '\t' '@' | tr '\n' ' ' | sed 's/\ $//g' | tr ' ' ':')"
+	local PACKAGE_LIST_CONF="${PROFILE_CURRENT_DIR}/apps/packages.conf"
+	[ "" != "${PACKAGE_LISTFILE}" ] && PACKAGE_LIST_CONF=${PACKAGE_LISTFILE}
+
+	local MODULES="$(cat ${PACKAGE_LIST_CONF} | tr '\t' '@' | tr '\n' ' ' | sed 's/\ $//g' | tr ' ' ':')"
 	echo -e "${UUID}\t${OS_NAME}/${OS_ARCH}\t${MODULES}" >> ${ARCHIVE_LIST}
 
 	RUN_CMD \
@@ -66,6 +78,7 @@ function yac_main {
 	[ "" == "${UPLOAD_URL_ENTRY}" ] && export UPLOAD_URL_ENTRY="https://fc.t2t.io"
 	export UPLOAD_USER=$1
 	export UPLOAD_PASS=$2
+	export PACKAGE_LISTFILE=$3
 
 	[ "" == "${UPLOAD_PASS}" ] && print_help && exit 1
 
