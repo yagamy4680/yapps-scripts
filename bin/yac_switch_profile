@@ -1,0 +1,59 @@
+#!/bin/bash
+#
+##DOC:	switch profile to another one, and install latest one archive when necessary
+
+function run_cmd {
+	INFO "$(PURPLE $@)"
+	${BASH} -c "$@"
+}
+
+function run_cmd_streaming {
+	INFO "$(PURPLE $@)"
+	${BASH} -c "$@" 2>&1 | awk '{printf "\t\t%s\n", $0}'
+}
+
+function check_profile_existence {
+	local PROFILE=$1
+	[ -d "${YS_APP_PROFILE_DIR}" ] || return 1
+	[ -d "${YS_APP_PROFILE_DIR}/${PROFILE}" ] || return 2
+	[ -f "${YS_APP_PROFILE_DIR}/${PROFILE}/env" ] || return 3
+	[ -f "${YS_APP_PROFILE_DIR}/${PROFILE}/env.old" ] || return 4
+	[ -f "${YS_APP_PROFILE_DIR}/${PROFILE}/entry" ] || return 5
+	[ -d "${YS_APP_PROFILE_DIR}/${PROFILE}/$(cat ${YS_APP_PROFILE_DIR}/${PROFILE}/entry)" ] || return 6
+	return 0
+}
+
+function yac_main {
+	local PREFERRED_PROFILE=$1
+	[ "" == "${PREFERRED_PROFILE}" ] && ERR "missing the preferred profile to switch" && exit 1
+	[ "" == "${BOARD_PROFILE}" ] && ERR "missing current profile => BOARD_PROFILE" && exit 1
+	[ "${BOARD_PROFILE}" == "${PREFERRED_PROFILE}" ] && ERR "current profile is already $(YELLOW ${BOARD_PROFILE})" && exit 1
+	INFO "BOARD_PROFILE = ${BOARD_PROFILE}"
+	INFO "PREFERRED_PROFILE = ${PREFERRED_PROFILE}"
+	check_profile_existence ${PREFERRED_PROFILE}
+	local CODE=$?
+	if [ "0" != "${CODE}" ]; then
+		INFO "checking profile $(YELLOW ${PREFERRED_PROFILE}) in ${YS_APP_PROFILE_DIR} but fails with code $(LIGHT_GREEN ${CODE})"
+		local CURRENT=$(pwd)
+		local INSTALLED_VERSION_FILE=$(mktemp /tmp/XXXXXX)
+		local DIR="${YS_APP_PROFILE_DIR}/${PREFERRED_PROFILE}"
+		run_cmd "cd /tmp"
+		run_cmd "rm -rf ${DIR}"
+		run_cmd "mkdir -p ${DIR}"
+		run_cmd "echo \"19700101a\" > ${DIR}/entry"
+		run_cmd "echo \"${BOARD_PROFILE_ENV}\" > ${DIR}/env"
+		run_cmd "echo \"${BOARD_PROFILE_ENV}\" > ${DIR}/env.old"
+		run_cmd_streaming "BOARD_PROFILE=${PREFERRED_PROFILE} ENV=${BOARD_PROFILE_ENV} INSTALLED_VERSION_FILE=${INSTALLED_VERSION_FILE} yac upgrade_profile"
+		CODE=$?
+		[ "0" != "${CODE}" ] && return ${CODE}
+		local VERSION=$(cat ${INSTALLED_VERSION_FILE})
+		run_cmd "rm -f ${INSTALLED_VERSION_FILE}"
+		INFO "install latest profile archive $(LIGHT_GREEN ${VERSION})) for $(YELLOW ${PREFERRED_PROFILE}) successfully"
+		run_cmd "echo \"${VERSION}\" > ${DIR}/entry"
+		run_cmd "cd ${DIR} && ln -s ./${VERSION} initial"
+		run_cmd_streaming "ls -al ${DIR}"
+	fi
+	sed -i "s/^BOARD_PROFILE.*/BOARD_PROFILE=${PREFERRED_PROFILE}/g" /etc/environment
+	INFO "change BOARD_PROFILE in /etc/environment to $(YELLOW ${PREFERRED_PROFILE})"
+	INFO "please reboot the system to take effect"
+}

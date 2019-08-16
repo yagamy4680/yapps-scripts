@@ -75,6 +75,9 @@ function download_and_extract {
 	INFO "switch /mnt/app/profiles/${BOARD_PROFILE}/env to $(YELLOW ${PROFILE_ENV})"
 	echo "${PROFILE_ENV}" > /mnt/app/profiles/${BOARD_PROFILE}/env
 
+	INFO "checking environment variable: INSTALLED_VERSION_FILE => ${INSTALLED_VERSION_FILE}"
+	[ "" != "${INSTALLED_VERSION_FILE}" ] && echo "${ARCHIVE_NAME}" > ${INSTALLED_VERSION_FILE}
+
 	local MODULE_CONF="/mnt/app/profiles/${BOARD_PROFILE}/${ARCHIVE_NAME}/apps/packages.conf"
 	local MODULE_DIR="/mnt/app/profiles/${BOARD_PROFILE}/${ARCHIVE_NAME}/runtimes/nodejs/${NODEJS_VERSION}"
 	source "$(dirname $0)/../externals/bash-utils/system"
