@@ -2,6 +2,20 @@
 #
 ##DOC:	upload any file onto FC_SITE
 
+function prepare_netrc {
+	[ "" == "${CLOUD_FILE_USER}" ] && return 0
+	local NETRC="${HOME}/.netrc"
+	local SERVER=$(echo ${CLOUD_FILE_FC} | sed -e "s/[^/]*\/\/\([^@]*@\)\?\([^:/]*\).*/\2/")
+	if [ ! -f "${NETRC}" ]; then
+		echo "machine ${SERVER} login ${CLOUD_FILE_USER} password ${CLOUD_FILE_PSWD}" > ${NETRC}
+	else
+		if [ "" == "$(cat ${NETRC} | grep ${SERVER} | grep ${CLOUD_FILE_USER})" ]; then
+			echo "machine ${SERVER} login ${CLOUD_FILE_USER} password ${CLOUD_FILE_PSWD}" >> ${NETRC}
+		fi
+	fi
+	chmod 600 ${NETRC}
+}
+
 function upload_rootfs_file {
 	local TARGET_FILE=$1
 	[ ! -f "${TARGET_FILE}" ] && ERR "no such file ${TARGET_FILE}" && exit 1
@@ -10,7 +24,7 @@ function upload_rootfs_file {
 	local TARGET_FILENAME=$(basename ${TARGET_FILE})
 	local TARGET_DIR=$(pwd)
 	local PARENT_DIR="${FC_PARENT_DIR}/rootfs"
-	[ "" == "${CLOUD_FILE_USER}" ] && local AUTH_OPTS="" || local AUTH_OPTS="-a ${CLOUD_FILE_USER}:${CLOUD_FILE_PSWD}"
+	prepare_netrc
 
 	INFO "uploading $(LIGHT_GREEN ${TARGET_DIR}/${TARGET_FILENAME})"
 
@@ -19,7 +33,6 @@ function upload_rootfs_file {
 			--form \
 			--check-status \
 			--ignore-stdin \
-			${AUTH_OPTS} \
 			${CLOUD_FILE_FC}/api/v1/c/upload \
 			site=${CLOUD_FILE_SITE} \
 			content@${TARGET_DIR}/${TARGET_FILENAME} \
@@ -66,7 +79,7 @@ function upload_archive_internal {
 	tar czf ${ARCHIVE} .
 
 	local PARENT_DIR="${FC_PARENT_DIR}/${TAG}"
-	[ "" == "${CLOUD_FILE_USER}" ] && local AUTH_OPTS="" || local AUTH_OPTS="-a ${CLOUD_FILE_USER}:${CLOUD_FILE_PSWD}"
+	prepare_netrc
 
 	INFO "uploading $(LIGHT_GREEN ${ARCHIVE})"
 	RUN_CMD \
@@ -74,7 +87,6 @@ function upload_archive_internal {
 			--form \
 			--check-status \
 			--ignore-stdin \
-			${AUTH_OPTS} \
 			${CLOUD_FILE_FC}/api/v1/c/upload \
 			site=${CLOUD_FILE_SITE} \
 			content@${ARCHIVE} \
