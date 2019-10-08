@@ -290,7 +290,7 @@ function network_wait {
 
 
 function run_init_scripts {
-	local SCRIPTS=($(find ${PROFILE_CURRENT_DIR}/etc/init.d/ -type f | sort))
+	local SCRIPTS=($(find ${PROFILE_CURRENT_DIR}/etc/init.d/ -type f -executable | sort))
 	for s in "${SCRIPTS[@]}"; do
 		INFO "executing $(LIGHT_GREEN ${BOARD_PROFILE}) / $(BLUE ${BOARD_PROFILE_VERSION}) / $(PURPLE $(basename $s)) ..."
 		notify_event "init" "$s" "begin"
