@@ -470,7 +470,11 @@ function initialize_network {
 	# so only bring them up.
 	#
 	for y in "${YS[@]}"; do
-		net_bring_up_interface ${y} false
+		if [ "" != "$(echo $y | grep '^usb')" ]; then
+			INFO "skip usb adapter - ${y}"
+		else
+			net_bring_up_interface ${y} false
+		fi
 	done
 
 	unset HOOK_STAGE
