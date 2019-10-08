@@ -103,7 +103,9 @@ function initiate_nodejs_runtime_variables {
 	# /opt/dotfiles/.bashrc
 	#
 	[ "" == "${HOME}" ] && export HOME=/root && INFO ""
-	[ "" == "${NODENV_SHELL}" ] && export PATH="/root/.nodenv/bin:$PATH" && eval "$(nodenv init -)"
+	[ "" == "${NODENV_SHELL}" ] && export PATH="/root/.nodenv/bin:$PATH"
+	[ "" == "$(which nodenv)" ] && INFO "missing nodenv~!!" && return 1
+	[ "" == "${NODENV_SHELL}" ] && eval "$(nodenv init -)"
 	[ "" == "${NODENV_SHELL}" ] && INFO "missing nodenv!!" && exit 1
 	local VERSION=$(nodenv version | awk '{print $1}')
 	local NODEDIR=$(dirname $(nodenv which node))
