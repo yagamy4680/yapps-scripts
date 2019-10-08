@@ -3,17 +3,17 @@
 ##DOC:	startup an app in current profile.
 
 function GET_DAEMON_CONFIG {
-	local APP=$1
+	local NAME=$1
 	local KEY=$2
 	case "${KEY}" in
 		pid_file)
-			echo "${YAC_RUN_DIR}/${APP}.pid"
+			echo "${YAC_RUN_DIR}/${NAME}.pid"
 			;;
 		ppid_file)
-			echo "${YAC_RUN_DIR}/${APP}.pid.ppid"
+			echo "${YAC_RUN_DIR}/${NAME}.pid.ppid"
 			;;
 		unixsock_file)
-			echo "${YAC_RUN_DIR}/${APP}.sock"
+			echo "${YAC_RUN_DIR}/${NAME}.sock"
 			;;
 		*)
 			;;
@@ -63,7 +63,7 @@ __EOF__
 
 function RUN_NODE_APP_DAEMON {
 	local DAEMON_DIR="${PROFILE_CURRENT_DIR}/daemons"
-	local DAEMON_SCRIPT="${DAEMON_DIR}/${APP}"
+	local DAEMON_SCRIPT="${DAEMON_DIR}/${APP_ALIAS}"
 	local DAEMON_SHARE_LOG="${PROFILE_LOG_DIR}/daemons.log"
 	INFO "preparing daemon script: $(LIGHT_GREEN ${DAEMON_SCRIPT})"
 	mkdir -p ${DAEMON_DIR}

@@ -12,6 +12,7 @@ function yac_main {
 
 	local APP=$1
 	local APP_DIR="${PROFILE_CURRENT_DIR}/apps/${APP}"
+	[ "" != "${YAC_APP_ALIAS}" ] && local APP_ALIAS="${APP}-${YAC_APP_ALIAS}" || local APP_ALIAS="${APP}"
 	shift
 
 	[ ! -d "${APP_DIR}" ] && ERR "cannot find $(RED ${APP}) in $(find ${PROFILE_CURRENT_DIR}/apps -maxdepth 1 -mindepth 1 -type d | xargs -I{} sh -c 'basename {}' | tr '\n' ' ')" && exit 1
@@ -21,7 +22,7 @@ function yac_main {
 	local TIME=$(date '+%Y%m%d%H%M')
 	local BOOTS=$(cat /tmp/ttt_system | grep "^profile_boots" | awk '{print $2}')
 	if [ "" == "${BOOTS}" ]; then
-		BOOTS=$(find ${PROFILE_LOG_APP_DIR} -name "${APP}*" | awk -F'.' '{print $4, $2}' | grep "^log" | awk '{print $2}' | sort -u | tail -n1)
+		BOOTS=$(find ${PROFILE_LOG_APP_DIR} -name "${APP_ALIAS}*" | awk -F'.' '{print $4, $2}' | grep "^log" | awk '{print $2}' | sort -u | tail -n1)
 		if [ "" == "${INDEX}" ]; then
 			BOOTS="000000"
 		else
@@ -29,14 +30,14 @@ function yac_main {
 			BOOTS=$(printf "%.6d" $((${INDEX} + 1)))
 		fi
 	fi
-	local DST_FILE="${PROFILE_CURRENT_DIR}/logs/${APP}.log"
-	local LOG_FILE="${PROFILE_LOG_APP_DIR}/${APP}.${BOOTS}.log"
+	local DST_FILE="${PROFILE_CURRENT_DIR}/logs/${APP_ALIAS}.log"
+	local LOG_FILE="${PROFILE_LOG_APP_DIR}/${APP_ALIAS}.${BOOTS}.log"
 
 	INFO "\tNODE_PATH = $(PURPLE ${NODEJS_MODULE_DIR}/node_modules)"
 	INFO "\t$(YELLOW ${RUNTIME_NODEJS_DIR}/bin/node) $(BLUE ${APP_DIR}/index.js) $(LIGHT_GREEN $@)"
 
-	local APP_PID_FILE=$(GET_DAEMON_CONFIG ${APP} pid_file)
-	local APP_UNIXSOCK_FILE=$(GET_DAEMON_CONFIG ${APP} unixsock_file)
+	local APP_PID_FILE=$(GET_DAEMON_CONFIG ${APP_ALIAS} pid_file)
+	local APP_UNIXSOCK_FILE=$(GET_DAEMON_CONFIG ${APP_ALIAS} unixsock_file)
 
 	# Make sure app-run directory exists
 	mkdir -p $(dirname ${APP_PID_FILE})
