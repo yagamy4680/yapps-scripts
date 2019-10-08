@@ -7,7 +7,9 @@ function yac_main {
 
 	local APP=$1
 	local APP_DIR="${PROFILE_CURRENT_DIR}/apps/${APP}"
-	local APP_UNIXSOCK_FILE=$(GET_DAEMON_CONFIG ${APP} unixsock_file)
+	[ "" != "${YAC_APP_ALIAS}" ] && local APP_ALIAS="${APP}-${YAC_APP_ALIAS}" || local APP_ALIAS="${APP}"
+
+	local APP_UNIXSOCK_FILE=$(GET_DAEMON_CONFIG ${APP_ALIAS} unixsock_file)
 
 	[ ! -d "${APP_DIR}" ] && ERR "no such app $(RED ${APP})" && exit 1
 
@@ -27,5 +29,5 @@ function yac_main {
 		[ "${TIMES}" -gt 180 ] && ERR "wait for 180 seconds but no app unix sock (${APP_UNIXSOCK_FILE}) is ready" && exit 1
 	done
 
-	INFO "\t$(LIGHT_GREEN ${APP}) ready"
+	INFO "\t$(LIGHT_GREEN ${APP_ALIAS}) ready"
 }
