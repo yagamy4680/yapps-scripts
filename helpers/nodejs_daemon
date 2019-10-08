@@ -51,6 +51,7 @@ function run_daemon {
 		#
 		log_daemon "$(LIGHT_GREEN $@)"
 		echo "YYY-------------------------"
+		echo -e "$(PURPLE $@)"
 		$@; EXIT_CODE=$?
 		echo "ZZZ-------------------------"
 		log_daemon "exit-code: ${EXIT_CODE}"
