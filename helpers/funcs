@@ -47,9 +47,11 @@ function init_yac_variables {
 
 	export YS_APP_PROFILE_DIR="${YS_APP_DIR}/profiles"
 	export YS_DAT_PROFILE_DIR="${YS_DAT_DIR}/profiles"
+	export YS_SYS_PROFILE_DIR="${YS_DIR}/profiles"
 
 	export PROFILE_MNT_APP_DIR="${YS_APP_PROFILE_DIR}/${BOARD_PROFILE}"
 	export PROFILE_MNT_DAT_DIR="${YS_DAT_PROFILE_DIR}/${BOARD_PROFILE}"
+	export PROFILE_OPT_SYS_DIR="${YS_SYS_PROFILE_DIR}/${BOARD_PROFILE}"
 
 	[ -f "${PROFILE_MNT_APP_DIR}/env" ] || {
 		echo "production" > ${PROFILE_MNT_APP_DIR}/env

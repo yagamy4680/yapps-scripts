@@ -81,7 +81,7 @@ function net_connect_wireless {
 
 	WIRELESS_IF=${ADAPTER} ${CONNECT_TO_AP} ${CONF_FILE}
 	if [ "0" == "$?" ] && [ "true" == "${USE_FOR_BOOT}" ]; then
-		local BOOT_WPA_CONF="${YS_DIR}/profiles/${BOARD_PROFILE}/wpa.config"
+		local BOOT_WPA_CONF="${PROFILE_OPT_SYS_DIR}/wpa.config"
 		mkdir -p $(dirname ${BOOT_WPA_CONF})
 		rm -f ${BOOT_WPA_CONF}
 		cp ${CONF_FILE} ${BOOT_WPA_CONF}

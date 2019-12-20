@@ -147,7 +147,7 @@ function net_dialup_datalink_wireless {
 	local TMP2=$(mktemp /tmp/XXXXXX)
 	local TMP3=$(mktemp /tmp/XXXXXX)
 	local TMP4=$(mktemp /tmp/XXXXXX)
-	local PROFILE_WPA_CONF="${YS_DIR}/profiles/${BOARD_PROFILE}/wpa.config"
+	local PROFILE_WPA_CONF="${PROFILE_OPT_SYS_DIR}/wpa.config"
 
 	[ "" == "${WIRELESS_KEYSTORES}" ] && WIRELESS_KEYSTORES="${YS_DIR}/wireless-keystores.conf"
 	[ ! -f "${WIRELESS_KEYSTORES}" ] && WIRELESS_KEYSTORES="${YS_DIR}/wireless-keystores.conf"
