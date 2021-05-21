@@ -125,12 +125,15 @@ function register_dev_node {
 
 	local TMP=$(mktemp /tmp/XXXXXX)
 	local USER="${BOARD_PROFILE}-$(basename ${YAC_DIR})"
+	local PASS="${CLOUD_RELEASE_PASS}"
+	[ "" != "${SERVER_PASS}" ] && PASS="${SERVER_PASS}"
 	INFO "posting data to ${SERVER}/api/v3/nodes/${BOARD_PROFILE}/create-dev-node/${BOARD_SERIAL_NUMBER} with user ${USER}"
+	INFO "http --check-status --ignore-stdin -a ${USER}:${PASS} ${SERVER}/api/v3/nodes/${BOARD_PROFILE}/create-dev-node/${BOARD_SERIAL_NUMBER} device=$(echo ${BOARD} | tr [a-z] [A-Z]) version=${BOARD_BASE_VERSION} macaddr_eth=${MACADDR_ETH} macaddr_usb=${MACADDR_USB} macaddr_wlan=${MACADDR_WLAN} macaddr_ble=${MACADDR_BLE} macaddr_blemo=${MACADDR_BLEMO}"
 
 	http \
 		--check-status \
 		--ignore-stdin \
-		-a ${USER}:${CLOUD_RELEASE_PASS} \
+		-a ${USER}:${PASS} \
 		${SERVER}/api/v3/nodes/${BOARD_PROFILE}/create-dev-node/${BOARD_SERIAL_NUMBER} \
 			device=$(echo ${BOARD} | tr [a-z] [A-Z]) \
 			version=${BOARD_BASE_VERSION} \
